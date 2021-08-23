@@ -1,7 +1,7 @@
 import re
 from typing import List, NamedTuple, Callable
 from functools import reduce
-from enum import Enum,auto
+from enum import Enum
 import inspect
 
 

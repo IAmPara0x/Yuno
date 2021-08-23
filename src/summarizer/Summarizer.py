@@ -24,6 +24,7 @@ class Summarizer:
   LENGTH_PENALTY:int = 2.0
   summarizer_model = pipeline("summarization", model=MODEL_NAME, device=DEVICE)
   BATCH_SIZE:int = 24
+
   def __init__(self):
     pass
 
