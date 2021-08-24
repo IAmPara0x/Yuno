@@ -1,21 +1,22 @@
 
 from enum import Enum,auto
+from typing import NamedTuple
 
 class TagIndexing(Enum):
-  ALL = auto()
-  PER_CATEGORY = auto()
+  all = auto()
+  per_category = auto()
 
 class TagIndexingMetric(Enum):
-  CosineSimilarity = auto()
-  L2Norm = auto()
+  cosine_similarity = auto()
+  l2norm = auto()
 
 class TagIndexerConfig(NamedTuple):
-  TAG_INDEXING_METHOD: TagIndexing
-  TAG_INDEXING_METRIC: TagIndexingMetric
+  tag_indexing_method: TagIndexing
+  tag_indexing_metric: TagIndexingMetric
 
 class SearchConfig(NamedTuple):
-  EMBEDDING_DIM: int
-  TOP_K:int
+  embedding_dim: int
+  top_k:int
 
 class Config:
   @classmethod
@@ -24,4 +25,4 @@ class Config:
 
 class DefaultConfig(Config):
   search_config = SearchConfig(1280,128)
-  tagindexer_config = TagIndexerConfig(TagIndexing.PER_CATEGORY,TAG_INDEXING_METRIC.CosineSimilarity)
+  tagindexer_config = TagIndexerConfig(TagIndexing.per_category,TagIndexingMetric.cosine_similarity)
