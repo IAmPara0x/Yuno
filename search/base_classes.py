@@ -4,8 +4,8 @@ from enum import Enum
 from typing import NamedTuple, List, Callable, Any, Dict, Union
 from abc import ABCMeta, abstractmethod
 
-from model import Model
-from config import Config
+from .model import Model
+from .config import Config
 
 
 class Genre(NamedTuple):
@@ -65,7 +65,7 @@ class SearchBase(NamedTuple):
 
 
 class sort_search:
-  def __init__(self, func: Callable[[ReIndexerBase, SearchResult],SearchResult]) -> None:
+  def __init__(self, func: Callable[["ReIndexerBase", SearchResult],SearchResult]) -> None:
     self.func = func
 
   def __call__(self, *args, **kwargs) -> SearchResult:

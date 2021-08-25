@@ -1,2 +1,2 @@
-faiss-cpu -c pytorch
+faiss-cpu
 transformers

@@ -1,6 +1,6 @@
 from typing import Union, Tuple
-from config import *
-from base_classes import *
+from .config import *
+from .base_classes import *
 
 
 class Search:
