@@ -24,7 +24,6 @@ class Tag(NamedTuple):
 class TagCategory(NamedTuple):
   uid: int
   name: str
-  description: str
   tags_uid: List[int]
 
   def tag_pos(self, tag_uid) -> int:
@@ -145,7 +144,7 @@ class ReIndexerBase(metaclass=ABCMeta):
     return SearchResult(**kwargs)
 
 
-class ReIndexingPipeline:
+class ReIndexingPipelineBase:
   _reindexer_names: List[str] = []
 
   @classmethod
