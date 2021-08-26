@@ -91,3 +91,28 @@ class TagReIndexer(ReIndexerBase):
     anime_mat = self.tags_mat(anime_info)
     anime_mat = anime_mat.reshape(-1)
     return self.cosine_similarity(anime_mat,query_mat)
+
+
+class AccReIndexer(ReIndexerBase):
+  def __call__(self, search_result: SearchResult) -> SearchResult:
+    return self.acc_score(search_result)
+
+  def acc_score(self,search_result: SearchResult) -> SearchResult:
+
+    result_embeddings = []
+    result_indexs = []
+    scores = []
+    anime_infos = []
+
+    def helper(idx,anime_info: Anime):
+      if anime_info not in anime_infos:
+        anime_infos.append(anime_info)
+        embedding,index,score,_ = search_result.get_result(idx)
+        result_embeddings.append(embedding)
+        result_indexs.append(index)
+        idxs = np.where(search_result.anime_infos==anime_info)[0]
+        scores.append(sum(search_result.scores[idxs]))
+
+    for idx, anime_info in enumerate(search_result.anime_infos):
+      helper(idx,anime_info)
+    return self.new_search_result(search_result,scores=scores,result_embeddings=result_embeddings,result_indexs=result_indexs,anime_infos=anime_infos)

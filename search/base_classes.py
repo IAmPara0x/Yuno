@@ -1,7 +1,7 @@
 
 import numpy as np
 from enum import Enum
-from typing import NamedTuple, List, Callable, Any, Dict, Union
+from typing import NamedTuple, List, Callable, Any, Dict, Union, Tuple
 from abc import ABCMeta, abstractmethod
 
 from .model import Model
@@ -37,6 +37,11 @@ class Anime(NamedTuple):
   tags_uid: List[int]
   tags_score: List[int]
 
+  def __eq__(self, anime: object) -> bool:
+    if not isinstance(anime, Anime):
+      return NotImplemented
+    return anime.uid == self.uid
+
 
 class Query(NamedTuple):
   text: str
@@ -49,6 +54,9 @@ class SearchResult(NamedTuple):
   result_indexs: np.ndarray
   scores: np.ndarray
   anime_infos: List[Anime]
+
+  def get_result(self,idx: int) -> Tuple[np.ndarray,int,int,Anime]:
+    return (self.result_embeddings[idx],self.result_indexs[idx],self.scores[idx],self.anime_infos[idx])
 
 
 class SearchBase(NamedTuple):
@@ -124,9 +132,9 @@ class ReIndexerBase(metaclass=ABCMeta):
 
     config_name = f"{self.name}_config"
     reindexer_config = getattr(config,config_name)
-
-    for name,val in zip(reindexer_config._fields,reindexer_config.__iter__()):
-      setattr(self,name,val)
+    if reindexer_config is not None:
+      for name,val in zip(reindexer_config._fields,reindexer_config.__iter__()):
+        setattr(self,name,val)
 
   @normalize
   @sort_search
@@ -153,5 +161,9 @@ class ReIndexingPipelineBase:
     setattr(cls,name,reindexer)
 
   @classmethod
-  def reindex_all(cls, search_result: SearchResult) -> SearchResult:
-    pass
+  def reindex_all(cls, input) -> SearchResult:
+    for name in cls._reindexer_names:
+      reindexer = getattr(cls,name)
+      input = reindexer(input)
+    return input
+
