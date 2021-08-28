@@ -15,6 +15,7 @@ class Search:
     for name,val in zip(search_config._fields,search_config.__iter__()):
       setattr(self,name,val)
 
+  @normalize
   @sort_search
   def knn_search(self, text:str) -> SearchResult:
     q_embedding = self.MODEL(text)

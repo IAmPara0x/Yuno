@@ -60,7 +60,7 @@ class SearchResult(NamedTuple):
     return (self.result_embeddings[idx],self.result_indexs[idx],self.scores[idx],self.anime_infos[idx])
 
   @staticmethod
-  def new_search_result(prev_result: SearchResult, **kwargs) -> SearchResult:
+  def new_search_result(prev_result: "SearchResult", **kwargs) -> "SearchResult":
     remaining_fields = set(prev_result._fields) - set(kwargs.keys())
     kwargs.update({field_name: getattr(prev_result,field_name) for field_name in remaining_fields})
     return SearchResult(**kwargs)
@@ -86,10 +86,10 @@ def sort_search(f):
     def sort(values):
       return [value  for _, value in sorted(zip(search_result.scores,values),reverse=True)]
 
-    search_result = f(self,*args,**kwargs)
+    search_result = f(self,*args)
     result_embeddings = sort(search_result.result_embeddings)
     result_indexs = sort(search_result.result_indexs)
-    anime_infos = sort(search_result.result_indexs)
+    anime_infos = sort(search_result.anime_infos)
 
     return SearchResult.new_search_result(search_result,result_embeddings=result_embeddings,
                                           result_indexs=result_indexs,anime_infos=anime_infos)
@@ -108,7 +108,7 @@ def normalize(f):
     def rescale_scores(scores:np.ndarray) -> np.ndarray:
       return scores/np.linalg.norm(scores)
 
-    search_result = f(self,*args,**kwargs)
+    search_result = f(self,*args)
 
     if kwargs.get("sigmoid") == True:
       scores = sigmoid(search_result.scores)
