@@ -130,7 +130,7 @@ class ReIndexerBase(metaclass=ABCMeta):
     for name,val in zip(search_base._fields,search_base.__iter__()):
       setattr(self,name,val)
 
-    config_name = f"{self.name}_config"
+    config_name = f"{self.name()}_config"
     reindexer_config = getattr(config,config_name)
     if reindexer_config is not None:
       for name,val in zip(reindexer_config._fields,reindexer_config.__iter__()):

@@ -9,14 +9,17 @@ class Search:
     for name,val in zip(search_base._fields,search_base.__iter__()):
       setattr(self,name,val)
 
-    config_name = f"{self.name}_config"
+    config_name = f"{self.name()}_config"
     search_config = getattr(config,config_name)
 
     for name,val in zip(search_config._fields,search_config.__iter__()):
       setattr(self,name,val)
 
+  @normalize
+  @sort_search
   def knn_search(self, text:str) -> SearchResult:
     q_embedding = self.MODEL(text)
+    q_embedding = np.expand_dims(q_embedding,0)
     distances,n_id = self.INDEX.search(q_embedding,self.top_k)
     distances = 1/distances.squeeze()
     n_id = n_id.squeeze()
