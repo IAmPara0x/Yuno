@@ -3,6 +3,7 @@ import numpy as np
 from enum import Enum
 from typing import NamedTuple, List, Callable, Any, Dict, Union, Tuple
 from abc import ABCMeta, abstractmethod
+from functools import wraps
 
 from .model import Model
 from .config import Config
@@ -58,6 +59,12 @@ class SearchResult(NamedTuple):
   def get_result(self,idx: int) -> Tuple[np.ndarray,int,int,Anime]:
     return (self.result_embeddings[idx],self.result_indexs[idx],self.scores[idx],self.anime_infos[idx])
 
+  @staticmethod
+  def new_search_result(prev_result: SearchResult, **kwargs) -> SearchResult:
+    remaining_fields = set(prev_result._fields) - set(kwargs.keys())
+    kwargs.update({field_name: getattr(prev_result,field_name) for field_name in remaining_fields})
+    return SearchResult(**kwargs)
+
 
 class SearchBase(NamedTuple):
   MODEL: Model
@@ -71,59 +78,46 @@ class SearchBase(NamedTuple):
   TEXTS: List[str]
 
 
-class sort_search:
-  def __init__(self, func: Callable[["ReIndexerBase", SearchResult],SearchResult]) -> None:
-    self.func = func
+def sort_search(f):
 
-  def __call__(self, *args, **kwargs) -> SearchResult:
-    search_result = self.func(*args)
-    result_embeddings = self.sort(search_result.scores,search_result.result_embeddings)
-    result_indexs = self.sort(search_result.scores,search_result.result_indexs)
-    anime_infos = self.sort(search_result.scores,search_result.anime_infos)
+  @wraps(f)
+  def _impl(self, *args, **kwargs) -> SearchResult:
 
-    return self.new_search_result(search_result,result_embeddings=result_embeddings,
-                                  result_indexs=result_indexs,anime_infos=anime_infos)
+    def sort(values):
+      return [value  for _, value in sorted(zip(search_result.scores,values),reverse=True)]
 
-  def sort(self, scores: np.ndarray, values: Union[List[Anime],np.ndarray]) -> Union[List[Anime],np.ndarray]:
-    return [value  for _, value in sorted(zip(scores,values),reverse=True)]
+    search_result = f(self,*args,**kwargs)
+    result_embeddings = sort(search_result.result_embeddings)
+    result_indexs = sort(search_result.result_indexs)
+    anime_infos = sort(search_result.result_indexs)
 
-  def new_search_result(self, prev_result: SearchResult, **kwargs) -> SearchResult:
-    remaining_fields = set(prev_result._fields) - set(kwargs.keys())
-    kwargs.update({field_name: getattr(prev_result,field_name) for field_name in remaining_fields})
-    return SearchResult(**kwargs)
+    return SearchResult.new_search_result(search_result,result_embeddings=result_embeddings,
+                                          result_indexs=result_indexs,anime_infos=anime_infos)
+
+  return _impl
 
 
-class normalize:
-  def __init__(self, func: Callable[[SearchResult],SearchResult]):
-    self.func = func
+def normalize(f):
 
-  def __call__(self, *args, **kwargs) -> SearchResult:
-    search_result = self.func(*args)
+  @wraps(f)
+  def _impl(self, *args, **kwargs) -> SearchResult:
+
+    def sigmoid(x: np.ndarray) -> np.ndarray:
+      return 1/(1+np.exp(-x))
+
+    def rescale_scores(scores:np.ndarray) -> np.ndarray:
+      return scores/np.linalg.norm(scores)
+
+    search_result = f(self,*args,**kwargs)
 
     if kwargs.get("sigmoid") == True:
-      scores = self.normalize_scores(search_result.scores)
+      scores = sigmoid(search_result.scores)
     else:
-      scores = self.rescale_scores(search_result.scores)
+      scores = rescale_scores(search_result.scores)
+    return SearchResult.new_search_result(search_result,scores=scores)
 
-    return self.new_search_result(search_result,scores=scores)
+  return _impl
 
-  @staticmethod
-  def sigmoid(x):
-    return 1/(1+np.exp(-x))
-
-  def normalize_scores(self, scores:np.ndarray) -> np.ndarray:
-    return self.sigmoid(scores)
-
-  def rescale_scores(self, scores:np.ndarray) -> np.ndarray:
-    return scores/np.linalg.norm(scores)
-
-  def new_search_result(self, prev_result: SearchResult, **kwargs) -> SearchResult:
-    remaining_fields = set(prev_result._fields) - set(kwargs.keys())
-    kwargs.update({field_name: getattr(prev_result,field_name) for field_name in remaining_fields})
-    return SearchResult(**kwargs)
-
-
-#NOTE: new_search_result is getting used in 3 classes normalize,sort_search,ReIndexerBase
 
 class ReIndexerBase(metaclass=ABCMeta):
   def __init__(self,search_base:SearchBase, config:Config) -> None:
@@ -145,11 +139,6 @@ class ReIndexerBase(metaclass=ABCMeta):
   @classmethod
   def name(cls) -> str:
     return cls.__name__.lower()
-
-  def new_search_result(self, prev_result: SearchResult, **kwargs) -> SearchResult:
-    remaining_fields = set(prev_result._fields) - set(kwargs.keys())
-    kwargs.update({field_name: getattr(prev_result,field_name) for field_name in remaining_fields})
-    return SearchResult(**kwargs)
 
 
 class ReIndexingPipelineBase:

@@ -15,7 +15,6 @@ class Search:
     for name,val in zip(search_config._fields,search_config.__iter__()):
       setattr(self,name,val)
 
-  @normalize
   @sort_search
   def knn_search(self, text:str) -> SearchResult:
     q_embedding = self.MODEL(text)
@@ -53,7 +52,7 @@ class TagReIndexer(ReIndexerBase):
     else:
       raise Exception(f"{self.tag_indexing_method} is not a corret type.")
 
-    return self.new_search_result(search_result,scores=similarity_scores)
+    return SearchResult.new_search_result(search_result,scores=similarity_scores)
 
   @staticmethod
   def cosine_similarity(v1: np.ndarray,v2: np.ndarray) -> int:
@@ -118,4 +117,4 @@ class AccReIndexer(ReIndexerBase):
 
     for idx, anime_info in enumerate(search_result.anime_infos):
       helper(idx,anime_info)
-    return self.new_search_result(search_result,scores=scores,result_embeddings=result_embeddings,result_indexs=result_indexs,anime_infos=anime_infos)
+    return SearchResult.new_search_result(search_result,scores=scores,result_embeddings=result_embeddings,result_indexs=result_indexs,anime_infos=anime_infos)
