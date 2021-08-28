@@ -60,9 +60,10 @@ class EmbeddingModel(nn.Module):
     return embeddings
 
 class Model:
-  def __init__(self, model_name:str) -> None:
+  def __init__(self, model_name:str, model_weight_path:str) -> None:
     self.device = "cuda" if torch.cuda.is_available() else "cpu"
     self.embedding_model = EmbeddingModel(model_name).to(self.device)
+    self.embedding_model.load_state_dict(torch.load(model_weight_path))
     self.embedding_model.eval()
     self.tokenizer = RobertaTokenizerFast.from_pretrained(model_name)
 
