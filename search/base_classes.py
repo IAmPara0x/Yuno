@@ -14,6 +14,11 @@ class Genre(NamedTuple):
   uid: int
   name: str
 
+  def __eq__(self, other_genre: object) -> bool:
+    if not isinstance(other_genre, Tag):
+      return NotImplemented
+    return other_genre.uid == self.uid
+
 
 class Tag(NamedTuple):
   uid: int
@@ -21,6 +26,11 @@ class Tag(NamedTuple):
   description: str
   embedding: np.ndarray
   category_uid: int
+
+  def __eq__(self, other_tag: object) -> bool:
+    if not isinstance(other_tag, Tag):
+      return NotImplemented
+    return other_tag.uid == self.uid
 
 
 class TagCategory(NamedTuple):
@@ -30,6 +40,11 @@ class TagCategory(NamedTuple):
 
   def tag_pos(self, tag_uid) -> int:
     return self.tags_uid.index(tag_uid)
+
+  def __eq__(self, other_category: object) -> bool:
+    if not isinstance(other_category, TagCategory):
+      return NotImplemented
+    return other_category.uid == self.uid
 
 
 class Anime(NamedTuple):
@@ -43,6 +58,9 @@ class Anime(NamedTuple):
     if not isinstance(anime, Anime):
       return NotImplemented
     return anime.uid == self.uid
+
+  def __hash__(self):
+    return hash(self.uid)
 
 
 class Query(NamedTuple):
@@ -143,15 +161,20 @@ class ReIndexerBase(metaclass=ABCMeta):
 class ReIndexingPipelineBase:
   _reindexer_names: List[str] = []
 
-  @classmethod
-  def add_reindexer(cls, name: str, reindexer: ReIndexerBase) -> None:
-    cls._reindexer_names.append(name)
-    setattr(cls,name,reindexer)
+  def __call__(self, input:str) -> SearchResult:
+    return self.reindex_all(input)
 
-  @classmethod
-  def reindex_all(cls, input) -> SearchResult:
-    for name in cls._reindexer_names:
-      reindexer = getattr(cls,name)
+  def add_reindexer(self, name: str, reindexer: ReIndexerBase) -> None:
+    self._reindexer_names.append(name)
+    setattr(self,name,reindexer)
+
+  def reindex_all(self, input) -> SearchResult:
+    for name in self._reindexer_names:
+      print(name)
+      reindexer = getattr(self,name)
+      print(type(reindexer))
       input = reindexer(input)
+      print(type(input))
     return input
+
 

@@ -1,4 +1,5 @@
 import operator
+import functools
 from typing import Union, Tuple
 from .config import *
 from .base_classes import *
@@ -15,6 +16,9 @@ class Search:
 
     for name,val in zip(search_config._fields,search_config.__iter__()):
       setattr(self,name,val)
+
+  def __call__(self, text: str) -> SearchResult:
+    return self.knn_search(text)
 
   @normalize(sigmoid=True)
   @sort_search
@@ -101,7 +105,7 @@ class TagReIndexer(ReIndexerBase):
 
 class AccReIndexer(ReIndexerBase):
 
-  @normalize()
+  @normalize(sigmoid=True)
   @sort_search
   def __call__(self, search_result: SearchResult) -> SearchResult:
     if self.acc_indexing_metric == AccIndexingMetric.add:
@@ -111,7 +115,7 @@ class AccReIndexer(ReIndexerBase):
     else:
       raise Exception("not correct type.")
 
-  def acc_result(self, search_result: SearchResult, metric: Callable[[Float,Float],Float], initial_val) -> SearchResult:
+  def acc_result(self, search_result: SearchResult, metric: Callable[[float,float],float], initial_val) -> SearchResult:
 
     where = lambda anime: [idx for idx, x in enumerate(search_result.anime_infos) if x == anime] #NOTE: can improve this?
 
