@@ -25,4 +25,4 @@ class Config:
 
 class DefaultConfig(Config):
   search_config = SearchConfig(1280,128)
-  tagindexer_config = TagIndexerConfig(TagIndexing.per_category,TagIndexingMetric.cosine_similarity)
+  tagreindexer_config = TagIndexerConfig(TagIndexing.per_category,TagIndexingMetric.cosine_similarity)

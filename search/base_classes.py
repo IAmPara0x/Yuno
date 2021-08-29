@@ -78,17 +78,19 @@ class SearchBase(NamedTuple):
   TEXTS: List[str]
 
 
+#NOTE: there must be better way to implement decorators like these.
 def sort_search(f):
 
   @wraps(f)
   def _impl(self, *args, **kwargs) -> SearchResult:
 
     def sort(values):
-      return [value  for _, value in sorted(zip(search_result.scores,values),reverse=True)]
+      return [value  for _, value in sorted(zip(search_result.scores,values),
+                      key=lambda x: x[0],reverse=True)]
 
     search_result = f(self,*args)
-    result_embeddings = sort(search_result.result_embeddings)
-    result_indexs = sort(search_result.result_indexs)
+    result_embeddings = np.array(sort(search_result.result_embeddings))
+    result_indexs = np.array(sort(search_result.result_indexs))
     anime_infos = sort(search_result.anime_infos)
 
     return SearchResult.new_search_result(search_result,result_embeddings=result_embeddings,
@@ -125,7 +127,7 @@ class ReIndexerBase(metaclass=ABCMeta):
       setattr(self,name,val)
 
     config_name = f"{self.name()}_config"
-    reindexer_config = getattr(config,config_name)
+    reindexer_config = getattr(config,config_name,None)
     if reindexer_config is not None:
       for name,val in zip(reindexer_config._fields,reindexer_config.__iter__()):
         setattr(self,name,val)

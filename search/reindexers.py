@@ -40,6 +40,8 @@ class Search:
 
 class TagReIndexer(ReIndexerBase):
 
+  @normalize
+  @sort_search
   def __call__(self, search_result: SearchResult) -> SearchResult:
     query_mat = self.tags_mat(search_result.query)
 
@@ -66,7 +68,7 @@ class TagReIndexer(ReIndexerBase):
 
   def tags_mat(self, x:Union[Anime,Query]) -> np.ndarray:
     len_tags_category = len(self.ALL_TAGS_CATEGORY.keys())
-    max_tags_uids = max(map(lambda val: len(val.tag_uids), self.ALL_TAGS_CATEGORY.values()))
+    max_tags_uids = max(map(lambda val: len(val.tags_uid), self.ALL_TAGS_CATEGORY.values()))
     tags_mat = np.zeros((len_tags_category, max_tags_uids))
 
     def assign_score(uid,score):
@@ -100,7 +102,10 @@ class AccReIndexer(ReIndexerBase):
   def __call__(self, search_result: SearchResult) -> SearchResult:
     return self.acc_score(search_result)
 
+  @normalize
+  @sort_search
   def acc_score(self,search_result: SearchResult) -> SearchResult:
+    #NOTE: implement this function in a better way
 
     result_embeddings = []
     result_indexs = []
@@ -119,3 +124,4 @@ class AccReIndexer(ReIndexerBase):
     for idx, anime_info in enumerate(search_result.anime_infos):
       helper(idx,anime_info)
     return SearchResult.new_search_result(search_result,scores=scores,result_embeddings=result_embeddings,result_indexs=result_indexs,anime_infos=anime_infos)
+
