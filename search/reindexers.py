@@ -1,3 +1,4 @@
+import operator
 from typing import Union, Tuple
 from .config import *
 from .base_classes import *
@@ -15,7 +16,7 @@ class Search:
     for name,val in zip(search_config._fields,search_config.__iter__()):
       setattr(self,name,val)
 
-  @normalize
+  @normalize(sigmoid=True)
   @sort_search
   def knn_search(self, text:str) -> SearchResult:
     q_embedding = self.MODEL(text)
@@ -29,7 +30,7 @@ class Search:
     n_anime_uids = self.LABELS[n_id]
     n_anime = map(lambda uid: self.ALL_ANIME[uid], n_anime_uids)
 
-    query = Query(text,q_embedding)
+    query = Query(text,q_embedding.squeeze())
 
     return SearchResult(query,n_embeddings,n_id,distances,list(n_anime))
 
@@ -40,7 +41,7 @@ class Search:
 
 class TagReIndexer(ReIndexerBase):
 
-  @normalize
+  @normalize()
   @sort_search
   def __call__(self, search_result: SearchResult) -> SearchResult:
     query_mat = self.tags_mat(search_result.query)
@@ -99,29 +100,32 @@ class TagReIndexer(ReIndexerBase):
 
 
 class AccReIndexer(ReIndexerBase):
-  def __call__(self, search_result: SearchResult) -> SearchResult:
-    return self.acc_score(search_result)
 
-  @normalize
+  @normalize()
   @sort_search
-  def acc_score(self,search_result: SearchResult) -> SearchResult:
-    #NOTE: implement this function in a better way
+  def __call__(self, search_result: SearchResult) -> SearchResult:
+    if self.acc_indexing_metric == AccIndexingMetric.add:
+      return self.acc_result(search_result,operator.add,initial_val=0)
+    elif self.acc_indexing_metric == AccIndexingMetric.add:
+      return self.acc_result(search_result,operator.mul,initial_val=1)
+    else:
+      raise Exception("not correct type.")
 
-    result_embeddings = []
-    result_indexs = []
-    scores = []
-    anime_infos = []
+  def acc_result(self, search_result: SearchResult, metric: Callable[[Float,Float],Float], initial_val) -> SearchResult:
 
-    def helper(idx,anime_info: Anime):
-      if anime_info not in anime_infos:
-        anime_infos.append(anime_info)
-        embedding,index,score,_ = search_result.get_result(idx)
-        result_embeddings.append(embedding)
-        result_indexs.append(index)
-        idxs = np.where(search_result.anime_infos==anime_info)[0]
-        scores.append(sum(search_result.scores[idxs]))
+    where = lambda anime: [idx for idx, x in enumerate(search_result.anime_infos) if x == anime] #NOTE: can improve this?
 
-    for idx, anime_info in enumerate(search_result.anime_infos):
-      helper(idx,anime_info)
-    return SearchResult.new_search_result(search_result,scores=scores,result_embeddings=result_embeddings,result_indexs=result_indexs,anime_infos=anime_infos)
+    def acc(anime):
+      idxs = where(anime)
+      result_index = search_result.result_indexs[idxs[0]]
+      result_embedding = search_result.result_embeddings[idxs[0]]
+      score = functools.reduce(metric,search_result.scores[idxs],initial_val)
+      return result_index,result_embedding,score
+
+    result = map(lambda anime: (anime,*acc(anime)), set(search_result.anime_infos))
+
+    anime_infos,result_indexs,result_embeddings,scores = zip(*result)
+
+    return SearchResult.new_search_result(search_result,anime_infos=list(anime_infos),result_indexs=np.array(result_indexs),
+                                          result_embeddings=np.array(result_embeddings),scores=np.array(scores))
 

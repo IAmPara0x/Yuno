@@ -7,6 +7,7 @@ from functools import wraps
 
 from .model import Model
 from .config import Config
+from . import utils
 
 
 class Genre(NamedTuple):
@@ -78,7 +79,6 @@ class SearchBase(NamedTuple):
   TEXTS: List[str]
 
 
-#NOTE: there must be better way to implement decorators like these.
 def sort_search(f):
 
   @wraps(f)
@@ -92,33 +92,32 @@ def sort_search(f):
     result_embeddings = np.array(sort(search_result.result_embeddings))
     result_indexs = np.array(sort(search_result.result_indexs))
     anime_infos = sort(search_result.anime_infos)
+    scores = np.array(sorted(search_result.scores,reverse=True))
 
     return SearchResult.new_search_result(search_result,result_embeddings=result_embeddings,
-                                          result_indexs=result_indexs,anime_infos=anime_infos)
+                                          result_indexs=result_indexs,anime_infos=anime_infos,scores=scores)
 
   return _impl
 
 
-def normalize(f):
+def normalize(**kwargs):
 
-  @wraps(f)
-  def _impl(self, *args, **kwargs) -> SearchResult:
+  def wrapper(f):
 
-    def sigmoid(x: np.ndarray) -> np.ndarray:
-      return 1/(1+np.exp(-x))
+    @wraps(f)
+    def _impl(self, *args) -> SearchResult:
 
-    def rescale_scores(scores:np.ndarray) -> np.ndarray:
-      return scores/np.linalg.norm(scores)
+      search_result = f(self,*args)
 
-    search_result = f(self,*args)
+      if kwargs.get("sigmoid") == True:
+        scores = utils.sigmoid(search_result.scores)
+      else:
+        scores = utils.rescale_scores(search_result.scores)
+      return SearchResult.new_search_result(search_result,scores=scores)
 
-    if kwargs.get("sigmoid") == True:
-      scores = sigmoid(search_result.scores)
-    else:
-      scores = rescale_scores(search_result.scores)
-    return SearchResult.new_search_result(search_result,scores=scores)
+    return _impl
 
-  return _impl
+  return wrapper
 
 
 class ReIndexerBase(metaclass=ABCMeta):
@@ -132,8 +131,6 @@ class ReIndexerBase(metaclass=ABCMeta):
       for name,val in zip(reindexer_config._fields,reindexer_config.__iter__()):
         setattr(self,name,val)
 
-  @normalize
-  @sort_search
   @abstractmethod
   def __call__(self, search_result:SearchResult) -> SearchResult:
     pass
