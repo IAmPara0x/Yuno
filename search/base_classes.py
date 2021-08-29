@@ -170,11 +170,8 @@ class ReIndexingPipelineBase:
 
   def reindex_all(self, input) -> SearchResult:
     for name in self._reindexer_names:
-      print(name)
       reindexer = getattr(self,name)
-      print(type(reindexer))
       input = reindexer(input)
-      print(type(input))
     return input
 
 
