@@ -3,7 +3,7 @@ from typing import Tuple, NamedTuple, Dict, Union, List
 import numpy as np
 import torch
 import torch.nn.functional as F
-from .config import TrainConfig, SampleMetric
+from .config import Config, SampleMetric
 from .model import Model
 
 
@@ -16,11 +16,12 @@ class Data(NamedTuple):
 
 class TrainBase(NamedTuple):
   ALL_DATA: Dict[int,Data]
-  DATA_UIDS: List[int]
+  TRAIN_DATA_UIDS: List[int]
+  TEST_DATA_UIDS: List[int] = None
 
 
 class SampleData:
-  def __init__(self, train_base: TrainBase, config: TrainConfig):
+  def __init__(self, train_base: TrainBase, config: Config):
 
     for name,val in zip(train_base._fields,train_base.__iter__()):
       setattr(self,name,val)
@@ -30,12 +31,16 @@ class SampleData:
     for name,val in zip(sampledata_config._fields,sampledata_config.__iter__()):
       setattr(self,name,val)
 
-  def __call__(self):
-    return self.sample()
+  def __call__(self,sample_test:bool=False):
+    return self.sample(sample_test)
 
-  def sample(self) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+  def sample(self,sample_test:bool) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
 
-    sampled_uid = np.random.choice(self.DATA_UIDS)
+    if sample_test:
+      sampled_uid = np.random.choice(self.TEST_DATA_UIDS)
+    else:
+      sampled_uid = np.random.choice(self.TRAIN_DATA_UIDS)
+
     sampled_data = self.ALL_DATA[sampled_uid]
     anchors,pos_data = self._get_triplet_data(sampled_data)
 
@@ -71,7 +76,7 @@ class SampleData:
 
 
 class SampleTriplets:
-  def __init__(self, config: TrainConfig):
+  def __init__(self, config: Config):
 
     config_name = f"{self.name()}_config"
     sampletriplets_config = getattr(config,config_name)
@@ -121,7 +126,11 @@ class SampleTriplets:
     hard_triplets = [(anchors[i],pos_data[j],neg_data[k])
                       for i,j,k in zip(range(a_size), hard_positives,hard_negatives)]
 
-    return hard_triplets
+    anchors = torch.vstack([i[0] for i in hard_triplets])
+    h_pos = torch.vstack([i[1] for i in hard_triplets])
+    h_neg = torch.vstack([i[2] for i in hard_triplets])
+
+    return anchors,h_pos,h_neg
 
   def pairwise_metric(self, input: Tuple[torch.Tensor,torch.Tensor]) -> torch.Tensor:
 

@@ -1,4 +1,4 @@
-from typing import NamedTuple, List, Callable
+from typing import NamedTuple, List, Callable, Any
 from enum import Enum, auto
 import torch
 
@@ -19,18 +19,30 @@ class SampleDataConfig(NamedTuple):
 
 
 class ModelConfig(NamedTuple):
-  train_steps: int
-  test_steps: int
-  acc_steps: int
-  batch_size: int
+  pretrained: str
+  hid_mix: int
+  embedding_layers: List[int]
+  dropout: float
+
+class TrainConfig(NamedTuple):
+  loss_fn: Callable[[torch.Tensor,torch.Tensor,torch.Tensor],float]
   lr: float
-  loss_fn: Callable[[torch.Tensor,torch.Tensor,torch.Tensor], float]
-  pretrained_model_path: str
+  optimizer: Any
+  batch_size: int
+  accumulation_steps: int
+  train_steps: int
+  test_steps: int = None
   device: str
 
+class Config:
+  @classmethod
+  def add_config(cls,name,obj):
+    setattr(cls,name,obj)
 
-class TrainConfig:
-  sampletriplets_config: SampleTripletsConfig
-  sampledata_config: SampleDataConfig
-  model_config: ModelConfig
+class DefaultConfig(Config):
+  sampletriplets_config = SampleTripletsConfig(SampleMetric.l2_norm)
+  sampledata_config = SampleDataConfig(12,4,"cuda")
+  model_config = ModelConfig("/kaggle/input/review-emddings-pt2/roberta_base_anime_finetuned.h5",
+                            5, [768,896,1024,1152,1280],0.1)
+  train_config = DefaultPipelineConfig(lambda x: x,1,8,1e-5,1500,1000,"cuda")
 
