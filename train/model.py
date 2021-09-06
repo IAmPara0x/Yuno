@@ -12,13 +12,14 @@ class FCN(nn.Module):
 
     fcn = []
     for dim1,dim2 in zip(layer_dims,layer_dims[1:]):
+      mid = round(np.average([dim1,dim2]))
       fcn.extend([nn.Linear(dim1,dim1),
                        nn.Tanh(),
-                       nn.Linear(dim1,round(np.average([dim1,dim2]))),
+                       nn.Linear(dim1,mid),
                        nn.Tanh(),
-                       nn.Linear(dim1,round(np.average([dim1,dim2]))),
+                       nn.Linear(mid,mid),
                        nn.Tanh(),
-                       nn.Linear(dim1,dim2),
+                       nn.Linear(mid,dim2),
                        nn.Dropout(dropout,inplace=False)
                       ])
     fcn.extend([

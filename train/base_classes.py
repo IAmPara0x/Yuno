@@ -107,8 +107,8 @@ class SampleTriplets:
       embeddings = model(mini_batch_data)
 
     a_embds = embeddings[:a_size]
-    p_embds = embeddings[a_size:p_size]
-    n_embds = embeddings[p_size:]
+    p_embds = embeddings[a_size:p_size*2]
+    n_embds = embeddings[p_size*2:]
 
     pos_distances = self.pairwise_metric((a_embds,p_embds))
     hard_positives = torch.max(pos_distances,1).indices
@@ -119,7 +119,7 @@ class SampleTriplets:
       h,w = (n_size - a_size), a_embds.shape[1]
       padding = torch.zeros((h,w)).to(a_embds.device)
       padded_anchors = torch.cat((a_embds,padding))
-      neg_distances = self.pairwise_metric((a_embds,n_embds))
+      neg_distances = self.pairwise_metric((padded_anchors,n_embds))
       neg_distances = neg_distances[:a_size]
 
     hard_negatives = torch.min(neg_distances,1).indices
@@ -160,4 +160,3 @@ class SampleTriplets:
   @classmethod
   def name(cls) -> str:
     return cls.__name__.lower()
-
