@@ -32,6 +32,9 @@ class TrainConfig(NamedTuple):
   accumulation_steps: int
   train_steps: int
   test_steps: int = None
+  save_info: bool = False
+  save_info_path: str = None
+  pretrained_weights: str = None
   device: str
 
 class Config:
