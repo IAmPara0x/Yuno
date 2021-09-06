@@ -52,5 +52,5 @@ class DefaultConfig(Config):
   sampledata_config = SampleDataConfig(12,4,"cuda")
   model_config = ModelConfig("/kaggle/input/review-emddings-pt2/roberta_base_anime_finetuned.h5",
                             5, [768,896,1024,1152,1280],0.1)
-  train_config = TrainConfig(criterion, 1e-5, torch.optim.AdamW, 1, 8, 1500, "cuda", 1500, True, "/kaggle/working")
+  train_config = TrainConfig(F.triplet_margin_loss, 1e-5, torch.optim.AdamW, 1, 8, 1500, "cuda", 1500, True, "/kaggle/working")
 

@@ -62,6 +62,7 @@ class Train:
       loss.backward()
       acc_loss.append(loss.item())
 
+      i += 1
       if i % self.accumulation_steps == 0:
         step += 1
         self.optim.step()
