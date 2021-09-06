@@ -46,7 +46,8 @@ class Model(nn.Module):
       setattr(self,name,val)
 
     self.transformer = RobertaModel.from_pretrained(self.pretrained, output_hidden_states=True)
-    self.encoder = FNN(self.embedding_layers,self.dropout)
+    self.tanh = nn.Tanh()
+    self.encoder = FCN(self.embedding_layers,self.dropout)
     self.feats = self.transformer.pooler.dense.out_features
 
   def forward(self,x:torch.Tensor) -> torch.Tensor:
