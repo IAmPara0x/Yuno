@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Union
 import numpy as np
 import torch
 import torch.nn as nn
@@ -13,15 +13,12 @@ class FCN(nn.Module):
     fcn = []
     for dim1,dim2 in zip(layer_dims,layer_dims[1:]):
       mid = round(np.average([dim1,dim2]))
-      fcn.extend([nn.Linear(dim1,dim1),
-                       nn.Tanh(),
-                       nn.Linear(dim1,mid),
-                       nn.Tanh(),
-                       nn.Linear(mid,mid),
-                       nn.Tanh(),
-                       nn.Linear(mid,dim2),
-                       nn.Dropout(dropout,inplace=False)
-                      ])
+      fcn.extend([ nn.Linear(dim1,mid),
+                   nn.Tanh(),
+                   nn.Linear(mid,dim2),
+                   nn.Dropout(dropout,inplace=False)
+                   nn.Tanh(),
+                  ])
     fcn.extend([
             nn.Linear(layer_dims[-1],layer_dims[-1]),
             nn.Tanh(),
@@ -51,18 +48,24 @@ class Model(nn.Module):
     self.encoder = FCN(self.embedding_layers,self.dropout)
     self.feats = self.transformer.pooler.dense.out_features
 
-  def forward(self,x:torch.Tensor) -> torch.Tensor:
-    outputs = self.transformer(x)
+  def forward(self,x:Union[torch.Tensor, Tuple[torch.Tensor,torch.Tensor,torch.Tensor]])-> torch.Tensor:
+    if isinstance(x,tuple) and len(x) == 3:
+      return self.forward_once(x[0]), self.forward_once(x[1]), self.forward_once(x[2])
+    elif isinstance(x,torch.Tensor):
+      return self.forward_once(x)
+
+  def forward_once(self, x):
+    outputs = self.roberta(x)
     hidden_states = outputs[2]
-    hmix = [hidden_states[-i][:,0].reshape((-1,1,self.feats)) for i in range(1, self.hid_mix+1)]
+    hmix = []
+    for i in range(1, self.hid_mix+1):
+      hmix.append(hidden_states[-i][:,0].reshape((-1,1,self.feats)))
+
     hmix_tensor = torch.cat(hmix,1)
     pool_tensor = torch.mean(hmix_tensor,1)
     pool_tensor = self.tanh(pool_tensor)
     embeddings = self.encoder(pool_tensor)
     return embeddings
-
-  def get_triplets(self,a,p,n):
-    return (self.forward(a),self.forward(p),self.forward(n))
 
   @classmethod
   def name(cls) -> str:
