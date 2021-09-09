@@ -54,7 +54,7 @@ class Train:
         break
 
       b_anchors,b_pos,b_negs = self._batch_sample()
-      a_embds,p_embds,n_embds = self.model.get_triplets(b_anchors,b_pos,b_negs)
+      a_embds,p_embds,n_embds = self.model((b_anchors,b_pos,b_negs))
       loss = self.loss_fn(a_embds,p_embds,n_embds)
       tbar.set_description(f"AVG_LOSS: {np.average(avg_loss):.5f}, LOSS:{loss.item():.5f}, STEP: {step}")
 

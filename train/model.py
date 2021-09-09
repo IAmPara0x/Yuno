@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List, Union, Tuple
 import numpy as np
 import torch
 import torch.nn as nn
@@ -12,17 +12,12 @@ class FCN(nn.Module):
 
     fcn = []
     for dim1,dim2 in zip(layer_dims,layer_dims[1:]):
-      mid = round(np.average([dim1,dim2]))
-      fcn.extend([ nn.Linear(dim1,mid),
-                   nn.Tanh(),
-                   nn.Linear(mid,dim2),
-                   nn.Dropout(dropout,inplace=False)
+      fcn.extend([ nn.Linear(dim1,dim2),
+                   nn.Dropout(dropout,inplace=False),
                    nn.Tanh(),
                   ])
     fcn.extend([
             nn.Linear(layer_dims[-1],layer_dims[-1]),
-            nn.Tanh(),
-            nn.Linear(layer_dims[-1],layer_dims[-1])
             ])
     self.encoder = nn.Sequential(*fcn)
 
@@ -55,7 +50,7 @@ class Model(nn.Module):
       return self.forward_once(x)
 
   def forward_once(self, x):
-    outputs = self.roberta(x)
+    outputs = self.transformer(x)
     hidden_states = outputs[2]
     hmix = []
     for i in range(1, self.hid_mix+1):
