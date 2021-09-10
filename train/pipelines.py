@@ -1,75 +1,89 @@
 from typing import Tuple
+from toolz import reduce, compose
 from tqdm import tqdm
 import pickle
 import numpy as np
 import torch
 
-from .base_classes import TrainBase, SampleData, SampleTriplets
+from .base_classes import TrainBase, SampleData, SampleTriplets, Triplet, Tensor
 from .model import Model
 from .config import Config, DefaultConfig
+
 
 class Train:
   def __init__(self,train_base: TrainBase,config: Config):
     self.sample_data = SampleData(train_base,config)
     self.sample_triplets = SampleTriplets(config)
-    self.model = Model(config)
 
     config_name = f"{self.name()}_config"
     train_config = getattr(config,config_name)
     for name,val in zip(train_config._fields,train_config.__iter__()):
       setattr(self,name,val)
 
-    self.model = self.model.to(self.device)
-    self.optim = self.optimizer(self.model.parameters(), lr=self.lr)
-
-    if self.pretrained_weights:
-      self.model.load_state_dict(torch.load(self.pretrained_weights))
-
-  def _batch_sample(self,sample_test:bool=False) -> Tuple[torch.Tensor,torch.Tensor,torch.Tensor]:
-    b_anchors,b_pos,b_negs = [],[],[]
+  def _batch_sample(self,sample_test:bool=False) -> Triplet:
     batch_size = self.batch_size*4 if sample_test else self.batch_size
 
-    for _ in range(batch_size):
-      anchors,pos_data,neg_data = self.sample_data(sample_test)
-      a,p,n = self.sample_triplets(anchors,pos_data,neg_data,self.model)
+    def acc_data(data,_):
+      b_anchors,b_pos,b_negs = data
+      a,p,n = self.sample_triplets(self.sample_data(sample_test),self.model)
+
       b_anchors.append(a)
       b_pos.append(p)
       b_negs.append(n)
+      return data
+
+    b_anchors, b_pos, b_negs = reduce(acc_data,range(batch_size),([],[],[]))
+
     return torch.vstack(b_anchors),torch.vstack(b_pos),torch.vstack(b_negs)
 
   def start_training(self):
     self.model.train()
-    avg_loss,acc_loss = [],[]
-    i,step = 1,0
-    tbar = tqdm(total=self.train_steps)
+    train_loss = self._iterate(is_test = False)
 
-    while True:
-      if step == tbar.total:
-        tbar.close()
-        if self.save_info:
-          print("saving weights")
-          torch.save(self.model.state_dict(), f"{self.save_info_path}/model_weights.h5")
-          with open(f"{self.save_info_path}/train_avg_loss.pkl","wb") as f:
-            pickle.dump(avg_loss,f)
-        break
+    print("==================")
+    print("Entering Eval Mode")
+    print("==================")
+    self.model.eval()
+    test_loss = self._iterate(is_test = True)
 
-      b_anchors,b_pos,b_negs = self._batch_sample()
-      a_embds,p_embds,n_embds = self.model((b_anchors,b_pos,b_negs))
-      loss = self.loss_fn(a_embds,p_embds,n_embds)
-      tbar.set_description(f"AVG_LOSS: {np.average(avg_loss):.5f}, LOSS:{loss.item():.5f}, STEP: {step}")
+    if self.save_info:
+      with open(f"{self.save_info_path}/losses.pkl", "wb") as f:
+        data = {"train_loss": train_loss, "test_loss": test_loss}
+        pickle.dump(data,f)
 
-      loss /= self.accumulation_steps
-      loss.backward()
-      acc_loss.append(loss.item())
+  def _iterate(self,is_test: bool = False):
+    if is_test:
+      acc_steps = 1
+      total_steps = self.test_steps
+      tbar = tqdm(total=total_steps)
+    else:
+      acc_steps = self.accumulation_steps
+      total_steps = self.train_steps
+      tbar = tqdm(total=total_steps)
 
-      i += 1
-      if i % self.accumulation_steps == 0:
-        step += 1
-        self.optim.step()
-        self.optim.zero_grad()
-        avg_loss.append(sum(acc_loss))
-        tbar.update(1)
-        acc_loss = []
+    def forward_pass():
+      if is_test:
+        with torch.no_grad():
+          loss = compose(self.loss_fn,self.model,self._batch_sample)(is_test)
+      else:
+        loss = compose(self.loss_fn,self.model,self._batch_sample)(is_test)
+      return loss
+
+    def helper(avg_loss,i):
+      loss = forward_pass()
+      avg_loss.append(loss.item())
+      tbar.set_description(f"AVG_LOSS: {np.average(avg_loss):.5f}, LOSS:{loss.item():.5f}, STEP: {tbar.n}")
+      loss /= acc_steps
+      if not is_test:
+        loss.backward()
+        if i % acc_steps == 0:
+          tbar.update(1)
+          self.step_fn()
+      return avg_loss
+
+    avg_loss = reduce(helper, range(1,acc_steps*total_steps), [])
+    tbar.close()
+    return avg_loss
 
   @classmethod
   def name(cls) -> str:

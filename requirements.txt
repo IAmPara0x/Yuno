@@ -1,2 +1,3 @@
 faiss-cpu
 transformers
+toolz

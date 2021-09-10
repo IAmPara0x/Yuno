@@ -6,12 +6,15 @@ import torch.nn.functional as F
 from .config import Config, SampleMetric
 from .model import Model
 
+Tensor = torch.Tensor
+Triplet = Tuple[Tensor, Tensor, Tensor]
+
 
 class Data(NamedTuple):
   uid: int
   neg_uids: List[int]
-  tokenized_sents: torch.Tensor
-  tokenized_qs: Union[torch.Tensor, None] = None
+  tokenized_sents: Tensor
+  tokenized_qs: Union[Tensor, None] = None
 
 
 class TrainBase(NamedTuple):
@@ -34,7 +37,7 @@ class SampleData:
   def __call__(self,sample_test:bool=False):
     return self.sample(sample_test)
 
-  def sample(self,sample_test:bool) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+  def sample(self,sample_test:bool) -> Triplet:
 
     if sample_test:
       sampled_uid = np.random.choice(self.TEST_DATA_UIDS)
@@ -49,24 +52,24 @@ class SampleData:
                           for uid in sampled_neg_uids],0)
     return (anchors,pos_data,neg_data)
 
-  def _sample_idxs(self, xs: torch.Tensor, size: int = None) -> torch.Tensor:
+  def _sample_data(self, xs: Tensor, size: int = None) -> Tensor:
 
     if size is None: size = self.sample_data_size
     idxs = np.random.choice(len(xs), size, replace=False)
     return xs[idxs]
 
   def _get_triplet_data(self, data: Data,
-                    is_neg_data: bool = False) -> Union[Tuple[torch.Tensor,torch.Tensor],torch.Tensor]:
+                    is_neg_data: bool = False) -> Union[Tuple[Tensor,Tensor],Tensor]:
 
     if is_neg_data:
-      neg_data = self._sample_idxs(data.tokenized_sents)
+      neg_data = self._sample_data(data.tokenized_sents)
       return neg_data.to(self.device)
     else:
       if data.tokenized_qs is not None:
-        anchors = self._sample_idxs(data.tokenized_qs)
-        pos_data = self._sample_idxs(data.tokenized_sents)
+        anchors = self._sample_data(data.tokenized_qs)
+        pos_data = self._sample_data(data.tokenized_sents)
       else:
-        anchors = self._sample_idxs(data.tokenized_sents)
+        anchors = self._sample_data(data.tokenized_sents)
         pos_data = anchors.detach().clone()
       return (anchors.to(self.device), pos_data.to(self.device))
 
@@ -83,20 +86,19 @@ class SampleTriplets:
     for name,val in zip(sampletriplets_config._fields,sampletriplets_config.__iter__()):
       setattr(self,name,val)
 
-  def __call__(self, anchors: torch.Tensor, pos_data: torch.Tensor,
-                     neg_data: torch.Tensor, model: Model) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+  def __call__(self, anchors: Tensor, pos_data: Tensor,
+                     neg_data: Tensor, model: Model) -> Triplet:
 
     return self.hard_sample(anchors,pos_data,neg_data,model)
 
-  def hard_sample(self, anchors: torch.Tensor, pos_data: torch.Tensor,
-                        neg_data: torch.Tensor, model: Model) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+  def hard_sample(self,  triplets: Tuple[torch.tensor, Tensor, Tensor],
+                  model: Model) -> Tuple[Tensor, Tensor, Tensor]:
 
-    def assert_data(anchors,pos_data,neg_data):
-      assert anchors.shape == pos_data.shape
-      assert anchors.shape[1] == pos_data.shape[1] == neg_data.shape[1]
-      assert type(anchors) == type(pos_data) == type(neg_data) == torch.Tensor
+    anchors,pos_data,neg_data = triplets
 
-    assert_data(anchors,pos_data,neg_data)
+    assert anchors.shape == pos_data.shape
+    assert anchors.shape[1] == pos_data.shape[1] == neg_data.shape[1]
+    assert type(anchors) == type(pos_data) == type(neg_data) == torch.Tensor
 
     a_size = anchors.size(0)
     p_size = pos_data.size(0)
@@ -132,7 +134,7 @@ class SampleTriplets:
 
     return anchors,h_pos,h_neg
 
-  def pairwise_metric(self, input: Tuple[torch.Tensor,torch.Tensor]) -> torch.Tensor:
+  def pairwise_metric(self, input: Tuple[Tensor,Tensor]) -> Tensor:
 
     assert isinstance(input,tuple)
     assert isinstance(input[0],torch.Tensor)

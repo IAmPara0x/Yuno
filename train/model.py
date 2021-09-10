@@ -2,8 +2,11 @@ from typing import List, Union, Tuple
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from transformers import RobertaModel
+
 from .config import Config
+from .base_classes import Triplet, Tensor
 
 
 class FCN(nn.Module):
@@ -25,7 +28,7 @@ class FCN(nn.Module):
   def name(cls) -> str:
     return cls.__name__.lower()
 
-  def forward(self, x: torch.Tensor) -> torch.Tensor:
+  def forward(self, x: Tensor) -> Tensor:
     return self.encoder(x)
 
 
@@ -43,9 +46,9 @@ class Model(nn.Module):
     self.encoder = FCN(self.embedding_layers,self.dropout)
     self.feats = self.transformer.pooler.dense.out_features
 
-  def forward(self,x:Union[torch.Tensor, Tuple[torch.Tensor,torch.Tensor,torch.Tensor]])-> torch.Tensor:
+  def forward(self,x:Union[Tensor, Triplet])-> Union[Tensor, Triplet]:
     if isinstance(x,tuple) and len(x) == 3:
-      return self.forward_once(x[0]), self.forward_once(x[1]), self.forward_once(x[2])
+      return (self.forward_once(x[0]), self.forward_once(x[1]), self.forward_once(x[2]))
     elif isinstance(x,torch.Tensor):
       return self.forward_once(x)
 

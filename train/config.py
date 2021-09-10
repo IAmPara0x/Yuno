@@ -3,6 +3,8 @@ from enum import Enum, auto
 import torch
 import torch.nn.functional as F
 
+from .base_classes import Triplet, Tensor
+
 class SampleMetric(Enum):
   l1_norm = auto()
   l2_norm = auto()
@@ -26,9 +28,9 @@ class ModelConfig(NamedTuple):
   dropout: float
 
 class TrainConfig(NamedTuple):
-  loss_fn: Callable[[torch.Tensor,torch.Tensor,torch.Tensor],float]
-  lr: float
-  optimizer: Any
+  loss_fn: Callable[Triplet,float]
+  step_fn: Callable[[], None]
+  model: Model
   batch_size: int
   accumulation_steps: int
   train_steps: int
@@ -36,7 +38,6 @@ class TrainConfig(NamedTuple):
   test_steps: Union[int,None] = None
   save_info: bool = False
   save_info_path: Union[str,None] = None
-  pretrained_weights: Union[str,None] = None
 
 class Config:
   @classmethod
