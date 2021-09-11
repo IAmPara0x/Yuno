@@ -6,7 +6,9 @@ import torch.nn.functional as F
 from transformers import RobertaModel
 
 from .config import Config
-from .base_classes import Triplet, Tensor
+
+Tensor = torch.Tensor
+Triplet = Tuple[Tensor, Tensor, Tensor]
 
 
 class FCN(nn.Module):

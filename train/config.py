@@ -1,9 +1,13 @@
-from typing import NamedTuple, List, Callable, Any, Union
+from typing import NamedTuple, List, Callable, Any, Union, Tuple
 from enum import Enum, auto
 import torch
 import torch.nn.functional as F
 
-from .base_classes import Triplet, Tensor
+# from .base_classes import Triplet, Tensor
+from .model import Model
+
+Tensor = torch.Tensor
+Triplet = Tuple[Tensor, Tensor, Tensor]
 
 class SampleMetric(Enum):
   l1_norm = auto()
@@ -27,6 +31,7 @@ class ModelConfig(NamedTuple):
   embedding_layers: List[int]
   dropout: float
 
+
 class TrainConfig(NamedTuple):
   loss_fn: Callable[Triplet,float]
   step_fn: Callable[[], None]
@@ -39,10 +44,12 @@ class TrainConfig(NamedTuple):
   save_info: bool = False
   save_info_path: Union[str,None] = None
 
+
 class Config:
   @classmethod
   def add_config(cls,name,obj):
     setattr(cls,name,obj)
+
 
 def criterion(a,p,n) -> float:
   return 1.0

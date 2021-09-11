@@ -5,9 +5,13 @@ import pickle
 import numpy as np
 import torch
 
-from .base_classes import TrainBase, SampleData, SampleTriplets, Triplet, Tensor
+from .base_classes import TrainBase, SampleData, SampleTriplets
 from .model import Model
 from .config import Config, DefaultConfig
+
+
+Tensor = torch.Tensor
+Triplet = Tuple[Tensor, Tensor, Tensor]
 
 
 class Train:
