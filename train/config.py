@@ -3,9 +3,6 @@ from enum import Enum, auto
 import torch
 import torch.nn.functional as F
 
-# from .base_classes import Triplet, Tensor
-from .model import Model
-
 Tensor = torch.Tensor
 Triplet = Tuple[Tensor, Tensor, Tensor]
 
@@ -33,9 +30,9 @@ class ModelConfig(NamedTuple):
 
 
 class TrainConfig(NamedTuple):
-  loss_fn: Callable[Triplet,float]
+  loss_fn: Callable[[Triplet],float]
   step_fn: Callable[[], None]
-  model: Model
+  model: Any
   batch_size: int
   accumulation_steps: int
   train_steps: int
@@ -49,10 +46,6 @@ class Config:
   @classmethod
   def add_config(cls,name,obj):
     setattr(cls,name,obj)
-
-
-def criterion(a,p,n) -> float:
-  return 1.0
 
 
 class DefaultConfig(Config):
