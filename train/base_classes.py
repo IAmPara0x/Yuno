@@ -34,7 +34,7 @@ class SampleData:
     for name,val in zip(sampledata_config._fields,sampledata_config.__iter__()):
       setattr(self,name,val)
 
-  def __call__(self,sample_test:bool=False):
+  def __call__(self,sample_test:bool=False) -> Triplet:
     return self.sample(sample_test)
 
   def sample(self,sample_test:bool) -> Triplet:
@@ -86,13 +86,10 @@ class SampleTriplets:
     for name,val in zip(sampletriplets_config._fields,sampletriplets_config.__iter__()):
       setattr(self,name,val)
 
-  def __call__(self, anchors: Tensor, pos_data: Tensor,
-                     neg_data: Tensor, model: Model) -> Triplet:
+  def __call__(self, triplets: Triplet, model: Model) -> Triplet:
+    return self.hard_sample(triplets,model)
 
-    return self.hard_sample(anchors,pos_data,neg_data,model)
-
-  def hard_sample(self,  triplets: Tuple[torch.tensor, Tensor, Tensor],
-                  model: Model) -> Tuple[Tensor, Tensor, Tensor]:
+  def hard_sample(self, triplets: Triplet, model: Model) -> Triplet:
 
     anchors,pos_data,neg_data = triplets
 

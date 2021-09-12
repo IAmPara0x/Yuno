@@ -4,6 +4,7 @@ from enum import Enum
 from typing import NamedTuple, List, Callable, Any, Dict, Union, Tuple
 from abc import ABCMeta, abstractmethod
 from functools import wraps
+from toolz import curry
 
 from .model import Model
 from .config import Config
@@ -107,10 +108,10 @@ def sort_search(f):
                       key=lambda x: x[0],reverse=True)]
 
     search_result = f(self,*args)
-    result_embeddings = np.array(sort(search_result.result_embeddings))
-    result_indexs = np.array(sort(search_result.result_indexs))
+    result_embeddings = compose(np.array,sort)(search_result.result_embeddings)
+    result_indexs = compose(np.array,sort)(search_result.result_indexs)
     anime_infos = sort(search_result.anime_infos)
-    scores = np.array(sorted(search_result.scores,reverse=True))
+    scores = compose(np.array,sorted)(search_result.scores,reverse=True)
 
     return SearchResult.new_search_result(search_result,result_embeddings=result_embeddings,
                                           result_indexs=result_indexs,anime_infos=anime_infos,scores=scores)

@@ -1,5 +1,5 @@
 import operator
-import functools
+from toolz import compose, reduce, curry
 from typing import Union, Tuple
 from .config import *
 from .base_classes import *
@@ -29,11 +29,8 @@ class Search:
     distances = 1/distances.squeeze()
     n_id = n_id.squeeze()
 
-    n_embeddings = self.EMBEDDINGS[n_id]
-
-    n_anime_uids = self.LABELS[n_id]
-    n_anime = map(lambda uid: self.ALL_ANIME[uid], n_anime_uids)
-
+    n_embeddings, n_anime_uids = self.EMBEDDINGS[n_id], self.LABELS[n_id]
+    n_anime = compose(list,map)(lambda uid: self.ALL_ANIME[uid], n_anime_uids)
     query = Query(text,q_embedding.squeeze())
 
     return SearchResult(query,n_embeddings,n_id,distances,list(n_anime))
@@ -51,12 +48,10 @@ class TagReIndexer(ReIndexerBase):
     query_mat = self.tags_mat(search_result.query)
 
     if self.tag_indexing_method == TagIndexing.per_category:
-      similarity_scores = list(map(lambda anime_info: self.per_category_indexing(anime_info, query_mat),
-                                search_result.anime_infos))
+      similarity_scores = compose(list,map)(self.per_category_indexing(query_mat),search_result.anime_infos)
     elif self.tag_indexing_method == TagIndexing.all:
       query_mat = query_mat.reshape(-1)
-      similarity_scores = list(map(lambda anime_info: self.all_category_indexing(anime_info, query_mat),
-                                search_result.anime_infos))
+      similarity_scores = compose(list,map)(self.all_category_indexing(query_mat),search_result.anime_infos)
     else:
       raise Exception(f"{self.tag_indexing_method} is not a corret type.")
 
@@ -73,7 +68,7 @@ class TagReIndexer(ReIndexerBase):
 
   def tags_mat(self, x:Union[Anime,Query]) -> np.ndarray:
     len_tags_category = len(self.ALL_TAGS_CATEGORY.keys())
-    max_tags_uids = max(map(lambda val: len(val.tags_uid), self.ALL_TAGS_CATEGORY.values()))
+    max_tags_uids = compose(max,map)(lambda val: len(val.tags_uid), self.ALL_TAGS_CATEGORY.values())
     tags_mat = np.zeros((len_tags_category, max_tags_uids))
 
     def assign_score(uid,score):
@@ -91,13 +86,15 @@ class TagReIndexer(ReIndexerBase):
       raise Exception(f"Only supported types are Anime and Query but {type(x)} is None of them")
     return tags_mat
 
-  def per_category_indexing(self, anime_info: Anime, query_mat: np.ndarray) -> int:
+  @curry
+  def per_category_indexing(self, query_mat: np.ndarray, anime_info: Anime) -> int:
     anime_mat = self.tags_mat(anime_info)
-    x = np.diag(np.dot(anime_mat,query_mat.T))
-    y = np.diag(np.dot(anime_mat,anime_mat.T))
+    x = compose(np.diag,np.dot)(anime_mat,query_mat.T)
+    y = compose(np.diag,np.dot)(anime_mat,anime_mat.T)
     return np.dot(x,y)
 
-  def all_category_indexing(self, anime_info: Anime, query_mat: np.ndarray) -> int:
+  @curry
+  def all_category_indexing(self, query_mat: np.ndarray, anime_info: Anime) -> int:
     anime_mat = self.tags_mat(anime_info)
     anime_mat = anime_mat.reshape(-1)
     return self.cosine_similarity(anime_mat,query_mat)
@@ -110,12 +107,13 @@ class AccReIndexer(ReIndexerBase):
   def __call__(self, search_result: SearchResult) -> SearchResult:
     if self.acc_indexing_metric == AccIndexingMetric.add:
       return self.acc_result(search_result,operator.add,initial_val=0)
-    elif self.acc_indexing_metric == AccIndexingMetric.add:
+    elif self.acc_indexing_metric == AccIndexingMetric.mul:
       return self.acc_result(search_result,operator.mul,initial_val=1)
     else:
       raise Exception("not correct type.")
 
-  def acc_result(self, search_result: SearchResult, metric: Callable[[float,float],float], initial_val) -> SearchResult:
+  def acc_result(self, search_result: SearchResult,
+      metric: Callable[[float,float],float], initial_val: float) -> SearchResult:
 
     where = lambda anime: [idx for idx, x in enumerate(search_result.anime_infos) if x == anime] #NOTE: can improve this?
 
@@ -123,7 +121,7 @@ class AccReIndexer(ReIndexerBase):
       idxs = where(anime)
       result_index = search_result.result_indexs[idxs[0]]
       result_embedding = search_result.result_embeddings[idxs[0]]
-      score = functools.reduce(metric,search_result.scores[idxs],initial_val)
+      score = reduce(metric,search_result.scores[idxs],initial_val)
       return result_index,result_embedding,score
 
     result = map(lambda anime: (anime,*acc(anime)), set(search_result.anime_infos))

@@ -1,6 +1,6 @@
 import re
 from typing import List, NamedTuple, Callable
-from functools import reduce
+from toolz import reduce,compose
 from enum import Enum
 import inspect
 
@@ -45,21 +45,20 @@ class FilterText:
 
   @staticmethod
   def filter_anime_names(anime_info:AnimeInfo, texts:List[str]) -> List[str]:
-      anime_names = "|".join([re.escape(name) for name in anime_info.names])
-      return list(map(lambda text: re.sub(rf"(?i){anime_names}", f"{SpecialToken.anime_name_token}",text),
-                      texts))
+    anime_names = r"\b|\b".join([re.escape(name) for name in anime_info.names])
+    regexp = lambda text: re.sub(rf"(?i){anime_names}", f"{SpecialToken.anime_name_token}",text)
+    return compose(list,map)(regexp,texts)
 
   @staticmethod
   def filter_character_names(anime_info:AnimeInfo, texts:List[str]) -> List[str]:
     characters = anime_info.characters
 
     def sub_char_name(char, texts):
-      char_names = "|".join([re.escape(name) for name in char.names])
+      char_names = r"\b|\b".join([re.escape(name) for name in char.names])
       return [re.sub(rf"(?i){char_names}",f"{char.gender.value}",text) for text in texts]
 
     def names_filter(chars, texts):
-      if len(chars) == 0:
-        return texts
+      if chars: return texts
       return names_filter(chars[1:],sub_char_name(chars[0],texts))
 
     return names_filter(characters, texts)

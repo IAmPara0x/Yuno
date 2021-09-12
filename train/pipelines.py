@@ -1,5 +1,6 @@
 from typing import Tuple
 from toolz import reduce, compose
+from toolz.curried import map
 from tqdm import tqdm
 import pickle
 import numpy as np
@@ -30,15 +31,14 @@ class Train:
     def acc_data(data,_):
       b_anchors,b_pos,b_negs = data
       a,p,n = self.sample_triplets(self.sample_data(sample_test),self.model)
-
       b_anchors.append(a)
       b_pos.append(p)
       b_negs.append(n)
       return data
 
-    b_anchors, b_pos, b_negs = reduce(acc_data,range(batch_size),([],[],[]))
+    b_anchors, b_pos, b_negs = compose(map(torch.vstack), reduce)(acc_data,range(batch_size),([],[],[]))
 
-    return torch.vstack(b_anchors),torch.vstack(b_pos),torch.vstack(b_negs)
+    return b_anchors, b_pos, b_negs
 
   def start_training(self):
     self.model.train()
