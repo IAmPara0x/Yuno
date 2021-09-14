@@ -1,6 +1,5 @@
 from typing import Tuple
-from toolz import reduce, compose
-from toolz.curried import map
+from toolz.curried import map,reduce,compose
 from tqdm import tqdm
 import pickle
 import numpy as np

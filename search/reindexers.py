@@ -1,5 +1,5 @@
 import operator
-from toolz import compose, reduce, curry
+from toolz.curried import compose, reduce, curry
 from typing import Union, Tuple
 from .config import *
 from .base_classes import *

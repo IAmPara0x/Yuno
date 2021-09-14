@@ -1,10 +1,10 @@
 
+from functools import wraps
+from toolz.curried import curry,reduce,map,apply,compose
 import numpy as np
 from enum import Enum
 from typing import NamedTuple, List, Callable, Any, Dict, Union, Tuple
 from abc import ABCMeta, abstractmethod
-from functools import wraps
-from toolz import curry
 
 from .model import Model
 from .config import Config
@@ -170,9 +170,6 @@ class ReIndexingPipelineBase:
     setattr(self,name,reindexer)
 
   def reindex_all(self, input) -> SearchResult:
-    for name in self._reindexer_names:
-      reindexer = getattr(self,name)
-      input = reindexer(input)
-    return input
-
-
+    f = partial(getattr,self)
+    output = reduce(lambda input,name: f(name)(input),self._reindexer_names,input)
+    return output

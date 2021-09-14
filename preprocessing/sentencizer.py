@@ -1,5 +1,5 @@
 import re
-import functools
+from toolz.curried import reduce
 from typing import List
 from abc import ABCMeta, abstractmethod
 import spacy
@@ -69,7 +69,7 @@ class ReviewSentencizer(SentencizerBase):
         x[-1] += " " + y
       return x
 
-    doc_sents = functools.reduce(greedy_sentence_filling,doc_sents,[""])
+    doc_sents = reduce(greedy_sentence_filling,doc_sents,[""])
 
     if len(doc_sents[-1].split()) >= self.MIN_SENTENCE_LENGTH:
       return doc_sents

@@ -1,6 +1,6 @@
 import re
 from typing import List, NamedTuple, Callable
-from toolz import reduce,compose
+from toolz.curried import reduce,compose
 from enum import Enum
 import inspect
 
@@ -58,7 +58,7 @@ class FilterText:
       return [re.sub(rf"(?i){char_names}",f"{char.gender.value}",text) for text in texts]
 
     def names_filter(chars, texts):
-      if chars: return texts
+      if not chars: return texts
       return names_filter(chars[1:],sub_char_name(chars[0],texts))
 
     return names_filter(characters, texts)
