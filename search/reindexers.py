@@ -20,7 +20,7 @@ class Search:
   def __call__(self, text: str) -> SearchResult:
     return self.knn_search(text)
 
-  @normalize(sigmoid=True)
+  @normalize(t_min=1,t_max=2)
   @sort_search
   def knn_search(self, text:str) -> SearchResult:
     q_embedding = self.MODEL(text)
@@ -42,7 +42,7 @@ class Search:
 
 class TagReIndexer(ReIndexerBase):
 
-  @normalize()
+  @normalize(t_min=1,t_max=4,inverse=False)
   @sort_search
   def __call__(self, search_result: SearchResult) -> SearchResult:
     query_mat = self.tags_mat(search_result.query)
@@ -55,6 +55,7 @@ class TagReIndexer(ReIndexerBase):
     else:
       raise Exception(f"{self.tag_indexing_method} is not a corret type.")
 
+    similarity_scores *= anime_infos.scores
     return SearchResult.new_search_result(search_result,scores=similarity_scores)
 
   @staticmethod

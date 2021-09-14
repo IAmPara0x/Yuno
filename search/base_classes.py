@@ -1,6 +1,6 @@
 
 from functools import wraps
-from toolz.curried import curry,reduce,map,apply,compose
+from toolz.curried import curry,reduce,map,apply,compose,partial
 import numpy as np
 from enum import Enum
 from typing import NamedTuple, List, Callable, Any, Dict, Union, Tuple
@@ -131,7 +131,10 @@ def normalize(**kwargs):
       if kwargs.get("sigmoid") == True:
         scores = utils.sigmoid(search_result.scores)
       else:
-        scores = utils.rescale_scores(search_result.scores)
+        scores = utils.rescale_scores(search_result.scores,
+                                      kwargs.get("t_min"),
+                                      kwargs.get("t_max"),
+                                      kwargs.get("inverse"))
       return SearchResult.new_search_result(search_result,scores=scores)
 
     return _impl
