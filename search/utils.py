@@ -3,7 +3,7 @@ import numpy as np
 def sigmoid(x: np.ndarray) -> np.ndarray:
   return 1/(1+np.exp(-x))
 
-def rescale_scores(scores:np.ndarray, t_min: int=1, t_max: int=2, inverse:bool=True) -> np.ndarray:
+def rescale_scores(scores:np.ndarray, t_min: int=1, t_max: int=2, inverse:bool=False) -> np.ndarray:
   r_min,r_max = min(scores),max(scores)
 
   if inverse:

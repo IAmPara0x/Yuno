@@ -1,8 +1,10 @@
 import operator
 from toolz.curried import compose, reduce, curry
 from typing import Union, Tuple
+
 from .config import *
 from .base_classes import *
+from .utils import rescale_scores
 
 
 class Search:
@@ -20,7 +22,7 @@ class Search:
   def __call__(self, text: str) -> SearchResult:
     return self.knn_search(text)
 
-  @normalize(t_min=1,t_max=2)
+  @normalize(t_min=1,t_max=2,inverse=True)
   @sort_search
   def knn_search(self, text:str) -> SearchResult:
     q_embedding = self.MODEL(text)
@@ -42,7 +44,7 @@ class Search:
 
 class TagReIndexer(ReIndexerBase):
 
-  @normalize(t_min=1,t_max=4,inverse=False)
+  @normalize(t_min=1,t_max=8,inverse=False)
   @sort_search
   def __call__(self, search_result: SearchResult) -> SearchResult:
     query_mat = self.tags_mat(search_result.query)
@@ -55,6 +57,7 @@ class TagReIndexer(ReIndexerBase):
     else:
       raise Exception(f"{self.tag_indexing_method} is not a corret type.")
 
+    similarity_scores = rescale_scores(similarity_scores,t_min=1,t_max=3,inverse=False)
     similarity_scores *= anime_infos.scores
     return SearchResult.new_search_result(search_result,scores=similarity_scores)
 
@@ -103,7 +106,7 @@ class TagReIndexer(ReIndexerBase):
 
 class AccReIndexer(ReIndexerBase):
 
-  @normalize(sigmoid=True)
+  @normalize(t_min=1,t_max=6,inverse=False)
   @sort_search
   def __call__(self, search_result: SearchResult) -> SearchResult:
     if self.acc_indexing_metric == AccIndexingMetric.add:
