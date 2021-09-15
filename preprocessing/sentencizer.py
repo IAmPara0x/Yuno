@@ -71,7 +71,7 @@ class ReviewSentencizer(SentencizerBase):
 
     doc_sents = reduce(greedy_sentence_filling,doc_sents,[""])
 
-    if len(doc_sents[-1].split()) >= self.MIN_SENTENCE_LENGTH:
+    if len(doc_sents[-1].split()) >= self.MIN_SENTENCE_LENGTH or len(doc_sents) == 1:
       return doc_sents
     else:
       doc_sents[-2] += " " + doc_sents[-1]
