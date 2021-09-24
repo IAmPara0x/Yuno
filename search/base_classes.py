@@ -1,7 +1,7 @@
-from typing import List, Callable, Any, Dict, Union, Tuple, NewType, Optional
+from typing import Sequence, List, Callable, Any, Dict, Union, Tuple, NewType, Optional
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from returns.maybe import Some, Nothing, Maybe
+from returns.maybe import Maybe
 from functools import wraps
 from toolz.curried import reduce, map, compose, concat, pipe, nth  # type: ignore
 import numpy as np
@@ -51,10 +51,10 @@ class Anime:
   tag_uids: List[TagId] = field(compare=False)
   tag_scores: np.ndarray = field(compare=False)
 
-  def tags(self,search_base:"SearchBase") -> List[Tag]:
+  def tags(self, search_base: "SearchBase") -> List[Tag]:
     return [search_base.get_tag(uid) for uid in self.tag_uids]
 
-  def genres(self,search_base:"SearchBase") -> List[Genre]:
+  def genres(self, search_base: "SearchBase") -> List[Genre]:
     return [search_base.get_genre(uid) for uid in self.genre_uids]
 
 
@@ -116,7 +116,7 @@ class SearchResult:
 class SearchBase:
   model: Model
   index: Any
-  search_data: List[Data]
+  _search_data: List[Data]
   _animes: Dict[AnimeId, Anime]
   _tags: Dict[TagId, Tag]
   _tag_cats: Dict[TagCatId, TagCat]
@@ -134,6 +134,10 @@ class SearchBase:
   def animes(self) -> List[Anime]:
     return list(self._animes.values())
 
+  @property
+  def datas(self) -> List[Data]:
+    return self._search_data
+
   def get_tag(self, id: TagId) -> Tag:
     return self._tags[id]
 
@@ -147,7 +151,7 @@ class SearchBase:
     return self._animes[id]
 
   def get_searchdata(self, idx: int) -> Data:
-    return self.search_data[idx]
+    return self._search_data[idx]
 
 
 def sort_search(f):
@@ -187,8 +191,18 @@ def normalize(norm_f: Optional[Callable[[Scores], Scores]] = None):
 
 
 @dataclass
-class ReIndexerBase:
+class IndexerBase:
   search_base: SearchBase
+
+  @staticmethod
+  def new(search_base: SearchBase, config):
+    raise NotImplementedError
+
+  def model(self, text: str) -> np.ndarray:
+    return self.search_base.model(text)
+
+  def knn_search(self, q_embedding: np.ndarray, top_k: int) -> Tuple[np.ndarray, np.ndarray]:
+    return self.search_base.index.search(q_embedding, top_k)
 
   def __call__(self, search_result: SearchResult) -> SearchResult:
     raise NotImplementedError
@@ -202,16 +216,14 @@ class QueryProcessorBase:
 
 @dataclass(init=True, repr=False, eq=False, order=False, frozen=True)
 class SearchPipelineBase(metaclass=ABCMeta):
-  query_processor_pipeline: List[Callable[[Query], Query]]
-  search: Callable #NOTE: Bug with mypy thinks self is also an arg
-  #actual type:  search: Callable[[Query], SearchResult]
-  reindexer_pipeline: List[Callable[[SearchResult], SearchResult]]
+  query_processor_pipeline: Sequence[Callable[[Query], Query]]
+  search: Callable  # NOTE: Bug with mypy thinks self is also an arg
+  # actual type:  search: Callable[[Query], SearchResult]
+  indexer_pipeline: Sequence[Callable[[SearchResult],SearchResult]]
 
-  def add_query_processor(self, f: Callable[[Query], Query]):
-    self.query_processor_pipeline.append(f)
-
-  def add_reindxer(self, f: Callable[[SearchResult], SearchResult]):
-    self.reindexer_pipeline.append(f)
+  @staticmethod
+  def new(search_base: SearchBase, config:Config):
+    raise NotImplementedError
 
   def __call__(self, query: Query) -> SearchResult:
-    return pipe(query, *concat([self.query_processor_pipeline, [self.search], self.reindexer_pipeline]))
+    return pipe(query, *concat([self.query_processor_pipeline, [self.search], self.indexer_pipeline]))

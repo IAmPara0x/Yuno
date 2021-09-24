@@ -1,6 +1,10 @@
-from enum import Enum,auto
-from typing import NamedTuple,Callable
+from enum import Enum, auto
+from typing import NamedTuple, Callable
+import numpy as np
+from dataclasses import dataclass
+
 from .base_classes import Scores
+
 
 class TagIndexingMethod(Enum):
   all = auto()
@@ -12,7 +16,7 @@ class TagIndexingMetric(Enum):
   l2norm = auto()
 
 
-class TagReIndexerConfig(NamedTuple):
+class TagIndexerConfig(NamedTuple):
   indexing_method: TagIndexingMethod
   indexing_metric: TagIndexingMetric
 
@@ -22,22 +26,19 @@ class AccIndexingMetric(Enum):
   multiply = auto()
 
 
-class AccReIndexerConfig(NamedTuple):
-  acc_fn: Callable[[Scores],float]
+class AccIndexerConfig(NamedTuple):
+  acc_fn: Callable[[Scores], float]
 
 
 class SearchConfig(NamedTuple):
   embedding_dim: int
-  top_k:int
+  top_k: int
+  dist_fn: Callable[[np.ndarray], Scores]
 
 
+@dataclass(init=True)
 class Config:
-  @classmethod
-  def add_config(cls,name,obj):
-    setattr(cls,name,obj)
+  search_config: SearchConfig
+  tagindexer_config: TagIndexerConfig
+  accindexer_config: AccIndexerConfig
 
-
-# class DefaultConfig(Config):
-#   search_config = SearchConfig(1280,128)
-#   tagreindexer_config = TagReIndexerConfig(TagIndexing.per_category,TagIndexingMetric.cosine_similarity)
-#   accreindexer_config = AccReIndexerConfig(AccIndexingMetric.add)

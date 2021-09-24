@@ -1,4 +1,5 @@
 from typing import List
+import numpy as np
 import torch
 import torch.nn as nn
 from transformers import RobertaTokenizerFast, RobertaModel # type: ignore
@@ -67,7 +68,7 @@ class Model:
     self.embedding_model.eval()
     self.tokenizer = RobertaTokenizerFast.from_pretrained(model_name)
 
-  def __call__(self,text:str) -> torch.Tensor:
+  def __call__(self,text:str) -> np.ndarray:
     tokenized_text = self.tokenizer(text, return_tensors="pt")["input_ids"].to(self.device)
     with torch.no_grad():
       return self.embedding_model(tokenized_text).squeeze().cpu().numpy()

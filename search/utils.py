@@ -2,12 +2,14 @@ from typing import Callable
 import numpy as np
 from .base_classes import Scores
 
+
 def sigmoid(x: np.ndarray) -> np.ndarray:
   return 1/(1+np.exp(-x))
 
-def rescale_scores(t_min: int=1, t_max: int=2, inverse:bool=False) -> Callable[[Scores],Scores]:
-  def dispatch(scores:Scores) -> Scores:
-    r_min,r_max = min(scores),max(scores)
+
+def rescale_scores(t_min: int = 1, t_max: int = 2, inverse: bool = False) -> Callable[[Scores], Scores]:
+  def dispatch(scores: Scores) -> Scores:
+    r_min, r_max = min(scores), max(scores)
 
     if inverse:
       scaled_scores = (r_min - scores) / (r_max - r_min)
