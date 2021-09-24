@@ -1,7 +1,7 @@
-from typing import Callable
+from typing import Callable, NewType
 import numpy as np
-from .base_classes import Scores
 
+Scores = NewType("Scores", np.ndarray)
 
 def sigmoid(x: np.ndarray) -> np.ndarray:
   return 1/(1+np.exp(-x))

@@ -3,7 +3,8 @@ from typing import NamedTuple, Callable
 import numpy as np
 from dataclasses import dataclass
 
-from .base_classes import Scores
+
+Scores = NewType("Scores",np.ndarray)
 
 
 class TagIndexingMethod(Enum):
