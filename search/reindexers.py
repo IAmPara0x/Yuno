@@ -59,7 +59,7 @@ class AccIndexer(IndexerBase):
   # actual type:  acc_fn: Callable[[Scores], float]
 
   @staticmethod
-  def new(search_base: SearchBase, config: AccIndexerConfig) -> AccIndexer:
+  def new(search_base: SearchBase, config: AccIndexerConfig) -> "AccIndexer":
     return AccIndexer(search_base, config.acc_fn)
 
   @normalize(rescale_scores(t_min=1, t_max=6, inverse=False))
@@ -84,7 +84,7 @@ class TagIndexer(IndexerBase):
   indexing_metric: TagIndexingMetric
 
   @staticmethod
-  def new(search_base: SearchBase, config: TagIndexerConfig) -> TagIndexer:
+  def new(search_base: SearchBase, config: TagIndexerConfig) -> "TagIndexer":
     return TagIndexer(search_base, config.indexing_method, config.indexing_metric)
 
   @normalize(rescale_scores(t_min=1, t_max=8, inverse=False))

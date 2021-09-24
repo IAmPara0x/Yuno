@@ -1,5 +1,5 @@
 from enum import Enum, auto
-from typing import NamedTuple, Callable
+from typing import NamedTuple, Callable, NewType
 import numpy as np
 from dataclasses import dataclass
 

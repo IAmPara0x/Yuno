@@ -190,7 +190,7 @@ def normalize(norm_f: Optional[Callable[[Scores], Scores]] = None):
   return wrapper
 
 
-@dataclass
+@dataclass(frozen=True)
 class IndexerBase:
   search_base: SearchBase
 
