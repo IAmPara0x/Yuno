@@ -1,16 +1,29 @@
-from typing import Union, Tuple
-from toolz.curried import compose, reduce, curry, flip# type: ignore
+from typing import Union, Tuple, List, Callable, Optional
+from toolz.curried import compose, flip, map, unique, partial, first, curry  # type: ignore
 from dataclasses import dataclass
-import operator
+import numpy as np
 
-from .config import *
-from .base_classes import *
+from .base_classes import (Anime,
+                           Tag,
+                           Query,
+                           Data,
+                           Scores,
+                           ReIndexerBase,
+                           SearchResult,
+                           SearchBase,
+                           normalize,
+                           sort_search)
+from .config import (SearchConfig,
+                     AccReIndexerConfig,
+                     TagReIndexerConfig,
+                     TagIndexingMethod,
+                     TagIndexingMetric)
+from .model import Model
 from .utils import rescale_scores
 
 
-@dataclass(init=True,frozen=True)
-class Search:
-  search_base: SearchBase
+@dataclass(init=True, frozen=True)
+class Search(ReIndexerBase):
   embedding_dim: int
   top_k: int
 
@@ -18,123 +31,127 @@ class Search:
   def model(self) -> Model:
     return self.search_base.model
 
-  @property
-  def knn_search(self) -> Any:
-    return self.search_base.index
+  def knn_search(self, q_embedding: np.ndarray, top_k: int) -> Tuple[np.ndarray, np.ndarray]:
+    return self.search_base.index.search(q_embedding, top_k)
 
   @property
-  def search_data(self) -> SearchData:
+  def search_data(self) -> List[Data]:
     return self.search_base.search_data
 
-  def new(self, search_base: SearchBase, config:SearchConfig) -> "Search":
-    return Search(search_base,config.embedding_dim,config.top_k)
+  @staticmethod
+  def new(search_base: SearchBase, config: SearchConfig) -> "Search":
+    return Search(search_base, config.embedding_dim, config.top_k)
 
+  @normalize(rescale_scores(t_min=1, t_max=2, inverse=True))
   @sort_search
   def __call__(self, query: Query) -> SearchResult:
     q_embedding = compose(
-                    flip(np.expand_dims,0),
-                    self.model)(query.text)
+        flip(np.expand_dims, 0),
+        self.model
+    )(query.text)
 
-    distances,n_id = self.knn_search(q_embedding,self.top_k)
-    distances = 1/distances.squeeze()
-    n_id = n_id.squeeze()
+    dist, n_idx = compose(
+        map(lambda x: x.squeeze()),
+        self.knn_search
+    )(q_embedding, self.top_k)
 
-    n_embeddings,n_anime_uids,texts = zip(*[self.search_data[idx] for idx in n_id])
-    n_animes = compose(list,map)(self.search_base.get_anime,n_anime_uids)
-    query = Query(query.text,q_embedding)
-    return SearchResult(query,n_embeddings,n_id,distances,n_animes)
-
-
-# class TagReIndexer(ReIndexerBase):
-
-#   @normalize(t_min=1,t_max=8,inverse=False)
-#   @sort_search
-#   def __call__(self, search_result: SearchResult) -> SearchResult:
-#     query_mat = self.tags_mat(search_result.query)
-
-#     if self.tag_indexing_method == TagIndexing.per_category:
-#       similarity_scores = compose(list,map)(self.per_category_indexing(query_mat),search_result.anime_infos)
-#     elif self.tag_indexing_method == TagIndexing.all:
-#       query_mat = query_mat.reshape(-1)
-#       similarity_scores = compose(list,map)(self.all_category_indexing(query_mat),search_result.anime_infos)
-#     else:
-#       raise Exception(f"{self.tag_indexing_method} is not a corret type.")
-
-#     similarity_scores = rescale_scores(similarity_scores,t_min=1,t_max=3,inverse=False)
-#     similarity_scores *= anime_infos.scores
-#     return SearchResult.new_search_result(search_result,scores=similarity_scores)
-
-#   @staticmethod
-#   def cosine_similarity(v1: np.ndarray,v2: np.ndarray) -> int:
-#     return np.dot(v1, v2)/(np.linalg.norm(v1)*np.linalg.norm(v2))
-
-#   def _get_tag_pos(self,tag_uid:int) -> Tuple[int,int]:
-#     i = self.ALL_TAGS[tag_uid].category_uid
-#     j = self.ALL_TAGS_CATEGORY[i].tag_pos(tag_uid)
-#     return (i,j)
-
-#   def tags_mat(self, x:Union[Anime,Query]) -> np.ndarray:
-#     len_tags_category = len(self.ALL_TAGS_CATEGORY.keys())
-#     max_tags_uids = compose(max,map)(lambda val: len(val.tags_uid), self.ALL_TAGS_CATEGORY.values())
-#     tags_mat = np.zeros((len_tags_category, max_tags_uids))
-
-#     def assign_score(uid,score):
-#       pos = self._get_tag_pos(uid)
-#       tags_mat[pos] = score
-
-#     if isinstance(x,Anime):
-#       for (uid,score) in zip(x.tags_uid,x.tags_score):
-#         assign_score(uid,score)
-#     elif isinstance(x,Query):
-#       for uid in self.ALL_TAGS.keys():
-#         score = self.cosine_similarity(self.ALL_TAGS[uid].embedding, x.embedding)
-#         assign_score(uid,score)
-#     else:
-#       raise Exception(f"Only supported types are Anime and Query but {type(x)} is None of them")
-#     return tags_mat
-
-#   @curry
-#   def per_category_indexing(self, query_mat: np.ndarray, anime_info: Anime) -> int:
-#     anime_mat = self.tags_mat(anime_info)
-#     x = compose(np.diag,np.dot)(anime_mat,query_mat.T)
-#     y = compose(np.diag,np.dot)(anime_mat,anime_mat.T)
-#     return np.dot(x,y)
-
-#   @curry
-#   def all_category_indexing(self, query_mat: np.ndarray, anime_info: Anime) -> int:
-#     anime_mat = self.tags_mat(anime_info)
-#     anime_mat = anime_mat.reshape(-1)
-#     return self.cosine_similarity(anime_mat,query_mat)
+    scores = Scores(1/dist)
+    result_data = [self.search_data[idx] for idx in n_idx]
+    query = Query(query.text, q_embedding)
+    return SearchResult(query, result_data, scores)
 
 
-# class AccReIndexer(ReIndexerBase):
+@dataclass(init=True, frozen=True)
+class AccReIndexer(ReIndexerBase):
+  acc_fn: Callable #NOTE: Bug with mypy thinks self is also an arg
 
-#   @normalize(t_min=1,t_max=6,inverse=False)
-#   @sort_search
-#   def __call__(self, search_result: SearchResult) -> SearchResult:
-#     if self.acc_indexing_metric == AccIndexingMetric.add:
-#       return self.acc_result(search_result,operator.add,initial_val=0)
-#     elif self.acc_indexing_metric == AccIndexingMetric.mul:
-#       return self.acc_result(search_result,operator.mul,initial_val=1)
-#     else:
-#       raise Exception("not correct type.")
+  #actual type:  acc_fn: Callable[[Scores], float]
 
-#   def acc_result(self, search_result: SearchResult,
-#       metric: Callable[[float,float],float], initial_val: float) -> SearchResult:
+  @staticmethod
+  def new(search_base: SearchBase, config: AccReIndexerConfig) -> AccReIndexer:
+    return AccReIndexer(search_base, config.acc_fn)
 
-#     where = lambda anime: [idx for idx, x in enumerate(search_result.anime_infos) if x == anime] #NOTE: can improve this?
+  @normalize(rescale_scores(t_min=1, t_max=6, inverse=False))
+  @sort_search
+  def __call__(self, search_result: SearchResult) -> SearchResult:
+    anime_uids = [
+        anime.uid for anime in search_result.animes(self.search_base)]
+    unique_uids = unique(anime_uids)
+    uids_idxs = map(lambda eq:
+                    [idx for idx, uid in enumerate(anime_uids) if eq(uid)],
+                    map(lambda uid: partial(lambda other: other == uid), unique_uids))
+    scores = compose(Scores, np.array, list, map
+                     )(lambda uid_idxs: self.acc_fn(search_result.scores[uid_idxs]), uids_idxs)
 
-#     def acc(anime):
-#       idxs = where(anime)
-#       result_index = search_result.result_indexs[idxs[0]]
-#       result_embedding = search_result.result_embeddings[idxs[0]]
-#       score = reduce(metric,search_result.scores[idxs],initial_val)
-#       return result_index,result_embedding,score
+    result_data = [search_result.data[idx] for idx in map(first, uids_idxs)]
+    return SearchResult.new(search_result, data=result_data, scores=scores)
 
-#     result = map(lambda anime: (anime,*acc(anime)), set(search_result.anime_infos))
 
-#     anime_infos,result_indexs,result_embeddings,scores = zip(*result)
+@dataclass(init=True, frozen=True)
+class TagReIndexer(ReIndexerBase):
+  indexing_method: TagIndexingMethod
+  indexing_metric: TagIndexingMetric
 
-#     return SearchResult.new_search_result(search_result,anime_infos=list(anime_infos),result_indexs=np.array(result_indexs),
-#                                           result_embeddings=np.array(result_embeddings),scores=np.array(scores))
+  @staticmethod
+  def new(search_base: SearchBase, config: TagReIndexerConfig) -> TagReIndexer:
+    return TagReIndexer(search_base, config.indexing_method, config.indexing_metric)
 
+  @normalize(rescale_scores(t_min=1, t_max=8, inverse=False))
+  @sort_search
+  def __call__(self, search_result: SearchResult) -> SearchResult:
+    query_mat = self.tags_mat(search_result.query)
+
+    if self.indexing_method == TagIndexingMethod.per_category:
+      similarity_scores = compose(list,map)(self.per_category_indexing(query_mat),search_result.animes(self.search_base))
+    elif self.indexing_method == TagIndexingMethod.all:
+      query_mat = query_mat.reshape(-1)
+      similarity_scores = compose(list,map)(self.all_category_indexing(query_mat),search_result.animes(self.search_base))
+    else:
+      raise Exception(f"{self.indexing_method} is not a corret type.")
+
+    similarity_scores = rescale_scores(t_min=1,t_max=3,inverse=False)(similarity_scores)
+    similarity_scores *= search_result.scores
+    return SearchResult.new(search_result,scores=similarity_scores)
+
+  @staticmethod
+  def cos_sim(v1: Optional[np.ndarray], v2: np.ndarray) -> int:
+    return np.dot(v1, v2)/(np.linalg.norm(v1)*np.linalg.norm(v2))
+
+  def tags_mat(self, x: Union[Anime, Query]) -> np.ndarray:
+    tag_cats = self.search_base.tag_cats
+    rows,cols = len(tag_cats),compose(max,map)(lambda cat: len(cat.tag_uids), tag_cats)
+    tags_mat = np.zeros((rows, cols))
+
+    def tag_pos(tag: Tag) -> Tuple[int,int]:
+      i = [idx for idx, cat in enumerate(
+          tag_cats) if cat.uid == tag.cat_uid][0]
+      j = [idx for idx, tag_uid in enumerate(
+          tag_cats[i].tag_uids) if tag_uid == tag.uid][0]
+      return (i, j)
+
+    if isinstance(x, Anime):
+      anime_tags = x.tags(self.search_base)
+      i_s, j_s = zip(*map(tag_pos, anime_tags))
+      tags_mat[(i_s, j_s)] = x.tag_scores
+    elif isinstance(x, Query):
+      all_tags = self.search_base.tags
+      i_s, j_s = zip(*map(tag_pos, all_tags))
+      scores = [self.cos_sim(x.embedding,tag.embedding) for tag in all_tags]
+      tags_mat[(i_s, j_s)] = scores
+    else:
+      raise Exception(
+          f"Only supported types are Anime and Query but {type(x)} is None of them")
+    return tags_mat
+
+  @curry
+  def per_category_indexing(self, query_mat: np.ndarray, anime_info: Anime) -> int:
+    anime_mat = self.tags_mat(anime_info)
+    x = compose(np.diag, np.dot)(anime_mat, query_mat.T)
+    y = compose(np.diag, np.dot)(anime_mat, anime_mat.T)
+    return np.dot(x, y)
+
+  @curry
+  def all_category_indexing(self, query_mat: np.ndarray, anime_info: Anime) -> int:
+    anime_mat = self.tags_mat(anime_info)
+    anime_mat = anime_mat.reshape(-1)
+    return self.cos_sim(anime_mat, query_mat)

@@ -1,7 +1,8 @@
 from enum import Enum,auto
-from typing import NamedTuple
+from typing import NamedTuple,Callable
+from .base_classes import Scores
 
-class TagIndexing(Enum):
+class TagIndexingMethod(Enum):
   all = auto()
   per_category = auto()
 
@@ -12,8 +13,8 @@ class TagIndexingMetric(Enum):
 
 
 class TagReIndexerConfig(NamedTuple):
-  tag_indexing_method: TagIndexing
-  tag_indexing_metric: TagIndexingMetric
+  indexing_method: TagIndexingMethod
+  indexing_metric: TagIndexingMetric
 
 
 class AccIndexingMetric(Enum):
@@ -22,7 +23,7 @@ class AccIndexingMetric(Enum):
 
 
 class AccReIndexerConfig(NamedTuple):
-  acc_indexing_metric: AccIndexingMetric
+  acc_fn: Callable[[Scores],float]
 
 
 class SearchConfig(NamedTuple):
@@ -36,7 +37,7 @@ class Config:
     setattr(cls,name,obj)
 
 
-class DefaultConfig(Config):
-  search_config = SearchConfig(1280,128)
-  tagreindexer_config = TagReIndexerConfig(TagIndexing.per_category,TagIndexingMetric.cosine_similarity)
-  accreindexer_config = AccReIndexerConfig(AccIndexingMetric.add)
+# class DefaultConfig(Config):
+#   search_config = SearchConfig(1280,128)
+#   tagreindexer_config = TagReIndexerConfig(TagIndexing.per_category,TagIndexingMetric.cosine_similarity)
+#   accreindexer_config = AccReIndexerConfig(AccIndexingMetric.add)

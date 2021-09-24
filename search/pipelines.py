@@ -1,11 +1,18 @@
-from typing import List
-from .base_classes import ReIndexingPipelineBase
-from .reindexers import Search,TagReIndexer,SearchBase,AccReIndexer
-from .config import Config
+# from typing import List
+# from dataclasses import dataclass
+# from .base_classes import SearchPipelineBase,SearchBase,Query
+# from .reindexers import Search,TagReIndexer,AccReIndexer
+# from .config import Config
 
-class DefaultPipleline(ReIndexingPipelineBase):
-  def __init__(self, search_base:SearchBase, config: Config) -> None:
-    self.add_reindexer("knn_search", Search(search_base,config))
-    self.add_reindexer("acc_indexer", AccReIndexer(search_base,config))
-    self.add_reindexer("tag_reindexer", TagReIndexer(search_base,config))
+# def id_query(query:Query) -> Query:
+#   return query
+
+# @dataclass
+# class DefaultPipleline(SearchPipelineBase):
+#   search_base: SearchBase
+
+#   def _post_init__(self):
+#     self.add_query_processor(id_query)
+#     self.add_query_processor(id_query)
+
 
