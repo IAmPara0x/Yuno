@@ -5,20 +5,23 @@ import numpy as np
 import operator
 
 from .base import (Anime,
-                           Tag,
-                           Query,
-                           Data,
-                           Scores,
-                           IndexerBase,
-                           SearchResult,
-                           SearchBase,
-                           normalize,
-                           sort_search)
+                   Tag,
+                   Query,
+                   Data,
+                   Scores,
+                   AllData,
+                   IndexerBase,
+                   SearchResult,
+                   SearchBase,
+                   normalize,
+                   sort_search)
+
 from .config import (SearchConfig,
                      AccIndexerConfig,
                      TagIndexerConfig,
                      TagIndexingMethod,
                      TagIndexingMetric)
+
 from .model import Model
 from .utils import rescale_scores
 
@@ -47,7 +50,7 @@ class Search(IndexerBase):
     )(q_embedding, self.top_k)
 
     scores = self.dist_fn(dist)
-    result_data = [self.search_base.get_searchdata(idx) for idx in n_idx]
+    result_data = [self.uid_data(idx) for idx in n_idx]
     query = Query(query.text, q_embedding)
     return SearchResult(query, result_data, scores)
 
@@ -66,11 +69,12 @@ class AccIndexer(IndexerBase):
   @sort_search
   def __call__(self, search_result: SearchResult) -> SearchResult:
     anime_uids = [
-        anime.uid for anime in search_result.animes(self.search_base)]
+        anime.uid for anime in self.animes(search_result)]
     unique_uids = unique(anime_uids)
-    uids_idxs = compose(list,map)(lambda eq:
-                    [idx for idx, uid in enumerate(anime_uids) if eq(uid)],
-                    map(curry(operator.eq), unique_uids))
+    uids_idxs = compose(list, map)(lambda eq:
+                                   [idx for idx, uid in enumerate(
+                                       anime_uids) if eq(uid)],
+                                   map(curry(operator.eq), unique_uids))
     scores = compose(Scores, np.array, list, map
                      )(lambda uid_idxs: self.acc_fn(search_result.scores[uid_idxs]), uids_idxs)
 
@@ -94,11 +98,11 @@ class TagIndexer(IndexerBase):
 
     if self.indexing_method == TagIndexingMethod.per_category:
       similarity_scores = compose(list, map)(self.per_category_indexing(
-          query_mat), search_result.animes(self.search_base))
+          query_mat), self.animes(search_result))
     elif self.indexing_method == TagIndexingMethod.all:
       query_mat = query_mat.reshape(-1)
       similarity_scores = compose(list, map)(self.all_category_indexing(
-          query_mat), search_result.animes(self.search_base))
+          query_mat), self.animes(search_result))
     else:
       raise Exception(f"{self.indexing_method} is not a corret type.")
 
@@ -108,11 +112,11 @@ class TagIndexer(IndexerBase):
     return SearchResult.new(search_result, scores=similarity_scores)
 
   @staticmethod
-  def cos_sim(v1: Optional[np.ndarray], v2: np.ndarray) -> int:
+  def cos_sim(v1: Optional[np.ndarray], v2: np.ndarray) -> np.ndarray:
     return np.dot(v1, v2)/(np.linalg.norm(v1)*np.linalg.norm(v2))
 
   def tags_mat(self, x: Union[Anime, Query]) -> np.ndarray:
-    tag_cats = self.search_base.tag_cats
+    tag_cats = self.tag_cats(AllData())
     rows, cols = len(tag_cats), compose(max, map)(
         lambda cat: len(cat.tag_uids), tag_cats)
     tags_mat = np.zeros((rows, cols))
@@ -125,13 +129,14 @@ class TagIndexer(IndexerBase):
       return (i, j)
 
     if isinstance(x, Anime):
-      anime_tags = x.tags(self.search_base)
+      anime_tags = self.tags(x.uid)
       i_s, j_s = zip(*map(tag_pos, anime_tags))
       tags_mat[(i_s, j_s)] = x.tag_scores
     elif isinstance(x, Query):
-      all_tags = self.search_base.tags
+      all_tags = self.tags(AllData())
       i_s, j_s = zip(*map(tag_pos, all_tags))
-      scores = [self.cos_sim(x.embedding, tag.embedding).item() for tag in all_tags]
+      scores = [self.cos_sim(x.embedding, tag.embedding).item()
+                for tag in all_tags]
       tags_mat[(i_s, j_s)] = scores
     else:
       raise Exception(
@@ -143,10 +148,10 @@ class TagIndexer(IndexerBase):
     anime_mat = self.tags_mat(anime_info)
     x = compose(np.diag, np.dot)(anime_mat, query_mat.T)
     y = compose(np.diag, np.dot)(anime_mat, anime_mat.T)
-    return np.dot(x, y)
+    return np.dot(x, y).item()
 
   @curry
   def all_category_indexing(self, query_mat: np.ndarray, anime_info: Anime) -> int:
     anime_mat = self.tags_mat(anime_info)
     anime_mat = anime_mat.reshape(-1)
-    return self.cos_sim(anime_mat, query_mat)
+    return self.cos_sim(anime_mat, query_mat).item()

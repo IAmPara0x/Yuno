@@ -3,8 +3,7 @@ from typing import NamedTuple, Callable, NewType
 import numpy as np
 from dataclasses import dataclass
 
-
-Scores = NewType("Scores",np.ndarray)
+from .base import Scores
 
 
 class TagIndexingMethod(Enum):
@@ -42,4 +41,3 @@ class Config:
   search_config: SearchConfig
   tagindexer_config: TagIndexerConfig
   accindexer_config: AccIndexerConfig
-
