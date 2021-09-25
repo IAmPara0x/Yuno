@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import numpy as np
 import operator
 
-from .base_classes import (Anime,
+from .base import (Anime,
                            Tag,
                            Query,
                            Data,

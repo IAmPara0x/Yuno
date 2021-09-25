@@ -5,7 +5,7 @@ import pickle
 import numpy as np
 import torch
 
-from .base_classes import TrainBase, SampleData, SampleTriplets
+from .base import TrainBase, SampleData, SampleTriplets
 from .model import Model
 from .config import Config, DefaultConfig
 

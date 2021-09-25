@@ -1,3 +1,3 @@
-from .base_classes import *
+from .base import *
 from .config import *
 from .pipelines import *

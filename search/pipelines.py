@@ -1,7 +1,7 @@
 from typing import List
 from dataclasses import dataclass
-from .base_classes import SearchPipelineBase, SearchBase, Query
-from .reindexers import Search, TagIndexer, AccIndexer
+from .base import SearchPipelineBase, SearchBase, Query
+from .indexers import Search, TagIndexer, AccIndexer
 from .config import Config
 
 
