@@ -158,9 +158,6 @@ def sort_search(f):
   @wraps(f)
   def _impl(self, *args, **kwargs) -> SearchResult:
 
-    def sort(values):
-      return [value for _, value in sorted(zip(search_result.scores, values),
-                                           key=lambda x: x[0], reverse=True)]
 
     search_result = f(self, *args)
 

@@ -68,7 +68,7 @@ class AccIndexer(IndexerBase):
     anime_uids = [
         anime.uid for anime in search_result.animes(self.search_base)]
     unique_uids = unique(anime_uids)
-    uids_idxs = map(lambda eq:
+    uids_idxs = compose(list,map)(lambda eq:
                     [idx for idx, uid in enumerate(anime_uids) if eq(uid)],
                     map(curry(operator.eq), unique_uids))
     scores = compose(Scores, np.array, list, map
@@ -131,7 +131,7 @@ class TagIndexer(IndexerBase):
     elif isinstance(x, Query):
       all_tags = self.search_base.tags
       i_s, j_s = zip(*map(tag_pos, all_tags))
-      scores = [self.cos_sim(x.embedding, tag.embedding) for tag in all_tags]
+      scores = [self.cos_sim(x.embedding, tag.embedding).item() for tag in all_tags]
       tags_mat[(i_s, j_s)] = scores
     else:
       raise Exception(
