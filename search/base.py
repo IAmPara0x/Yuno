@@ -2,7 +2,7 @@ from typing import Sequence, List, Callable, Any, Dict, Union, Tuple, NewType, O
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from returns.maybe import Maybe
-from functools import wraps, singledispatchmethod
+from functools import wraps
 from toolz.curried import reduce, map, compose, concat, pipe, nth  # type: ignore
 import numpy as np
 from abc import ABCMeta, abstractmethod
@@ -110,6 +110,13 @@ class SearchBase:
   _tag_cats: Dict[TagCatUid, TagCat]
   _genres: Dict[GenreUid, Genre]
 
+def singledispatchmethod(func):
+    dispatcher = singledispatch(func)
+    def wrapper(*args, **kw):
+        return dispatcher.dispatch(args[1].__class__)(*args, **kw)
+    wrapper.register = dispatcher.register
+    update_wrapper(wrapper, func)
+    return wrapper
 
 @dataclass(frozen=True)
 class ImplUidToData:
@@ -119,23 +126,23 @@ class ImplUidToData:
   def uid_to_data(self, uid):
     raise NotImplementedError
 
-  @uid_to_data.register
+  @uid_to_data.register(GenreUid)
   def _get_genre(self, id: GenreUid) -> Genre:
     return self.search_base._genres[id]
 
-  @uid_to_data.register
+  @uid_to_data.register(TagUid)
   def _get_tag(self, id: TagUid) -> Tag:
     return self.search_base._tags[id]
 
-  @uid_to_data.register
+  @uid_to_data.register(TagCatUid)
   def _get_tagcat(self, id: TagCatUid) -> TagCat:
     return self.search_base._tag_cats[id]
 
-  @uid_to_data.register
+  @uid_to_data.register(AnimeUid)
   def _get_anime(self, id: AnimeUid) -> Anime:
     return self.search_base._animes[id]
 
-  @uid_to_data.register
+  @uid_to_data.register(int)
   def _get_searchdata(self, idx: int) -> Data:
     return self.search_base._search_data[idx]
 
@@ -148,16 +155,16 @@ class ImplTags(ImplUidToData):
   def get_tags(self, d_type) -> List[Tag]:
     raise NotImplementedError
 
-  @get_tags.register
+  @get_tags.register(AllData)
   def _all_tags(self, _: AllData) -> List[Tag]:
     return list(self.search_base._tags.values())
 
-  @get_tags.register
+  @get_tags.register(AnimeUid)
   def _anime_tags(self, a_uid: AnimeUid) -> List[Tag]:
     anime = self.uid_to_data(a_uid)
     return compose(list, map)(self.uid_to_data, anime.tag_uids)
 
-  @get_tags.register
+  @get_tags.register(TagCatUid)
   def _tagcat_tags(self, c_uid: TagCatUid) -> List[Tag]:
     cat = self.uid_to_data(c_uid)
     return compose(list, map)(self.uid_to_data, cat.tag_uids)
@@ -171,7 +178,7 @@ class ImplTagCats:
   def get_tagcats(self, d_type) -> List[TagCat]:
     raise NotImplementedError
 
-  @get_tagcats.register
+  @get_tagcats.register(AllData)
   def _all_cats(self, _: AllData) -> List[TagCat]:
     return list(self.search_base._tag_cats.values())
 
@@ -184,11 +191,11 @@ class ImplAnimes(ImplUidToData):
   def get_animes(self, d_type) -> List[Anime]:
     raise NotImplementedError
 
-  @get_animes.register
+  @get_animes.register(SearchResult)
   def _searchres_animes(self, search_result: SearchResult) -> List[Anime]:
     return compose(list, map)(lambda x: self.uid_to_data(x.anime_uid), search_result.data)
 
-  @get_animes.register
+  @get_animes.register(AllData)
   def _all_animes(self, _: AllData) -> List[Anime]:
     return list(self.search_base._animes.values())
 
@@ -201,11 +208,11 @@ class ImplDatas:
   def get_datas(self, d_type) -> List[Data]:
     raise NotImplementedError
 
-  @get_datas.register
+  @get_datas.register(AllData)
   def _all_datas(self, _: AllData) -> List[Data]:
     return self.search_base._search_data
 
-  @get_datas.register
+  @get_datas.register(SearchResult)
   def _searchres_datas(self, search_result: SearchResult) -> List[Data]:
     return search_result.data
 
@@ -218,7 +225,7 @@ class ImplTexts:
   def get_texts(self, d_type) -> List[str]:
     raise NotImplementedError
 
-  @get_texts.register
+  @get_texts.register(SearchResult)
   def _searchres_texts(self, search_result: SearchResult) -> List[str]:
     return compose(list, map)(lambda x: x.text, search_result.data)
 
