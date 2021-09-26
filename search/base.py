@@ -2,15 +2,11 @@ from typing import Sequence, List, Callable, Any, Dict, Union, Tuple, NewType, O
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from returns.maybe import Maybe
-from functools import wraps
+from functools import wraps,singledispatch,update_wrapper
 from toolz.curried import reduce, map, compose, concat, pipe, nth  # type: ignore
 import numpy as np
 from abc import ABCMeta, abstractmethod
 
-
-from . import utils
-from .config import Config
-from .model import Model
 
 class GenreUid(int): pass
 class TagUid(int): pass
@@ -21,6 +17,9 @@ class Scores(np.ndarray): pass
 class Embedding(np.ndarray): pass
 class AllData(object): pass
 
+from . import utils
+from .config import Config
+from .model import Model
 
 @dataclass(init=True, repr=True, eq=True, order=False, frozen=True)
 class Genre:
