@@ -50,7 +50,7 @@ class Search(IndexerBase):
     )(q_embedding, self.top_k)
 
     scores = self.dist_fn(dist)
-    result_data = [self.uid_to_data(idx) for idx in n_idx]
+    result_data = [self.uid_to_data(int(idx)) for idx in n_idx]
     query = Query(query.text, q_embedding)
     return SearchResult(query, result_data, scores)
 
@@ -75,9 +75,10 @@ class AccIndexer(IndexerBase):
                                    [idx for idx, uid in enumerate(
                                        anime_uids) if eq(uid)],
                                    map(curry(operator.eq), unique_uids))
-    scores = compose(Scores, np.array, list, map
-                     )(lambda uid_idxs: self.acc_fn(search_result.scores[uid_idxs]), uids_idxs)
 
+    scores = compose(list, map
+                     )(lambda uid_idxs: np.sum(search_result.scores[uid_idxs]).item(), uids_idxs)
+    scores = np.array(scores,dtype=np.float32)
     result_data = [search_result.data[idx] for idx in map(first, uids_idxs)]
     return SearchResult.new(search_result, data=result_data, scores=scores)
 
@@ -107,7 +108,7 @@ class TagIndexer(IndexerBase):
       raise Exception(f"{self.indexing_method} is not a corret type.")
 
     similarity_scores = rescale_scores(
-        t_min=1, t_max=3, inverse=False)(similarity_scores)
+        t_min=1, t_max=3, inverse=False)(np.array(similarity_scores,dtype=np.float32))
     similarity_scores *= search_result.scores
     return SearchResult.new(search_result, scores=similarity_scores)
 
