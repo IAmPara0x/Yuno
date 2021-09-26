@@ -2,11 +2,15 @@ from typing import Sequence, List, Callable, Any, Dict, Union, Tuple, NewType, O
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from returns.maybe import Maybe
-from functools import wraps
+from functools import wraps, singledispatchmethod
 from toolz.curried import reduce, map, compose, concat, pipe, nth  # type: ignore
 import numpy as np
 from abc import ABCMeta, abstractmethod
 
+
+from . import utils
+from .config import Config
+from .model import Model
 
 class GenreUid(int): pass
 class TagUid(int): pass
@@ -17,9 +21,6 @@ class Scores(np.ndarray): pass
 class Embedding(np.ndarray): pass
 class AllData(object): pass
 
-from . import utils
-from .model import Model
-from .config import Config
 
 @dataclass(init=True, repr=True, eq=True, order=False, frozen=True)
 class Genre:
@@ -110,102 +111,120 @@ class SearchBase:
   _genres: Dict[GenreUid, Genre]
 
 
-Uids = Union[GenreUid, TagUid, TagCatUid, AnimeUid, DataUid, int]
-Datas = Union[Genre, Tag, TagCat, Anime, Data]
-
-
 @dataclass(frozen=True)
-class Impl:
+class ImplUidToData:
   search_base: SearchBase
 
-  def uid_data(self, uid: Uids):
-    data_funcs = [self._get_genre,
-                  self._get_tag,
-                  self._get_tagcat,
-                  self._get_anime,
-                  self._get_searchdata,
-                  self._get_searchdata]
-    uids = [GenreUid, TagUid, TagCatUid, AnimeUid, DataUid, int]
-    return self.dispatcher(uids, data_funcs)
-
-  def tags(self, d_type: Union[AllData, AnimeUid, TagCatUid]) -> List[Tag]:
-    data_funcs = [self._all_tags, self._anime_tags, self._tagcat_tags]
-    data_types = [AllData, AnimeUid, TagCatUid]
-    return self.dispatcher(data_types, data_funcs)
-
-  def tag_cats(self, d_type: Union[AllData]) -> List[TagCat]:
-    data_funcs = [self._all_cats]
-    data_types = [AllData]
-    return self.dispatcher(data_types, data_funcs)
-
-  def animes(self, d_type: Union[AllData, SearchResult]) -> List[Anime]:
-    data_funcs = [self._all_animes,self._searchres_animes]
-    data_types = [AllData,SearchResult]
-    return self.dispatcher(data_types, data_funcs)
-
-  def datas(self, d_type: Union[AllData,SearchResult]) -> List[Data]:
-    data_funcs = [self._all_datas,self._searchres_datas]
-    data_types = [AllData,SearchResult]
-    return self.dispatcher(data_types, data_funcs)
-
-  def texts(self,d_type:Union[SearchResult]) -> List[str]:
-    data_funcs = [self._searchres_texts]
-    data_types = [SearchResult]
-    return self.dispatcher(data_types, data_funcs)
-
-  @staticmethod
-  def dispatcher(types, funcs):
-    for d_type, f in zip(types, funcs):
-      if isinstance(d_type, uid_type):
-        return f(d_type)
+  @singledispatchmethod
+  def uid_to_data(self, uid):
     raise NotImplementedError
 
+  @uid_to_data.register
   def _get_genre(self, id: GenreUid) -> Genre:
     return self.search_base._genres[id]
 
+  @uid_to_data.register
   def _get_tag(self, id: TagUid) -> Tag:
     return self.search_base._tags[id]
 
+  @uid_to_data.register
   def _get_tagcat(self, id: TagCatUid) -> TagCat:
     return self.search_base._tag_cats[id]
 
+  @uid_to_data.register
   def _get_anime(self, id: AnimeUid) -> Anime:
     return self.search_base._animes[id]
 
+  @uid_to_data.register
   def _get_searchdata(self, idx: int) -> Data:
     return self.search_base._search_data[idx]
 
+
+@dataclass(frozen=True)
+class ImplTags(ImplUidToData):
+  search_base: SearchBase
+
+  @singledispatchmethod
+  def get_tags(self, d_type) -> List[Tag]:
+    raise NotImplementedError
+
+  @get_tags.register
   def _all_tags(self, _: AllData) -> List[Tag]:
     return list(self.search_base._tags.values())
 
+  @get_tags.register
   def _anime_tags(self, a_uid: AnimeUid) -> List[Tag]:
-    anime = self.uid_data(a_uid)
-    return compose(list, map)(self.uid_data, anime.tag_uids)
+    anime = self.uid_to_data(a_uid)
+    return compose(list, map)(self.uid_to_data, anime.tag_uids)
 
+  @get_tags.register
   def _tagcat_tags(self, c_uid: TagCatUid) -> List[Tag]:
-    cat = self.uid_data(c_uid)
-    return compose(list, map)(self.uid_data, cat.tag_uids)
+    cat = self.uid_to_data(c_uid)
+    return compose(list, map)(self.uid_to_data, cat.tag_uids)
 
+
+@dataclass(frozen=True)
+class ImplTagCats:
+  search_base: SearchBase
+
+  @singledispatchmethod
+  def get_tagcats(self, d_type) -> List[TagCat]:
+    raise NotImplementedError
+
+  @get_tagcats.register
   def _all_cats(self, _: AllData) -> List[TagCat]:
     return list(self.search_base._tag_cats.values())
 
-  def _searchres_animes(self,search_result:SearchResult) -> List[Anime]:
-    return compose(list,map)(lambda x: self.uid_data(x.anime_uid), search_result.data)
-
-  def _all_animes(self,_:AllData) -> List[Anime]:
-    return list(self.search_base._animes.values())
-
-  def _all_datas(self,_:AllData) -> List[Data]:
-    return self.search_base._search_data
-
-  def _searchres_datas(self, search_result:SearchResult) -> List[Data]:
-    return search_result.data
-
-  def _searchres_texts(self,search_result:SearchResult) -> List[str]:
-    return compose(list,map)(lambda x: x.text,search_result.data)
 
 @dataclass(frozen=True)
-class IndexerBase(Impl):
+class ImplAnimes(ImplUidToData):
+  search_base: SearchBase
+
+  @singledispatchmethod
+  def get_animes(self, d_type) -> List[Anime]:
+    raise NotImplementedError
+
+  @get_animes.register
+  def _searchres_animes(self, search_result: SearchResult) -> List[Anime]:
+    return compose(list, map)(lambda x: self.uid_to_data(x.anime_uid), search_result.data)
+
+  @get_animes.register
+  def _all_animes(self, _: AllData) -> List[Anime]:
+    return list(self.search_base._animes.values())
+
+
+@dataclass(frozen=True)
+class ImplDatas:
+  search_base: SearchBase
+
+  @singledispatchmethod
+  def get_datas(self, d_type) -> List[Data]:
+    raise NotImplementedError
+
+  @get_datas.register
+  def _all_datas(self, _: AllData) -> List[Data]:
+    return self.search_base._search_data
+
+  @get_datas.register
+  def _searchres_datas(self, search_result: SearchResult) -> List[Data]:
+    return search_result.data
+
+
+@dataclass(frozen=True)
+class ImplTexts:
+  search_base: SearchBase
+
+  @singledispatchmethod
+  def get_texts(self, d_type) -> List[str]:
+    raise NotImplementedError
+
+  @get_texts.register
+  def _searchres_texts(self, search_result: SearchResult) -> List[str]:
+    return compose(list, map)(lambda x: x.text, search_result.data)
+
+
+@dataclass(frozen=True)
+class IndexerBase(ImplTags, ImplTagCats, ImplAnimes, ImplDatas, ImplTexts):
   @staticmethod
   def new(search_base: SearchBase, config):
     raise NotImplementedError
@@ -234,7 +253,7 @@ class SearchPipelineBase(metaclass=ABCMeta):
   indexer_pipeline: Sequence[Callable[[SearchResult], SearchResult]]
 
   @staticmethod
-  def new(search_base: SearchBase, config: Config):
+  def new(search_base: SearchBase, config):
     raise NotImplementedError
 
   def __call__(self, query: Query) -> SearchResult:

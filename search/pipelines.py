@@ -2,7 +2,7 @@ from typing import List
 from dataclasses import dataclass
 from .base import SearchPipelineBase, SearchBase, Query
 from .indexers import Search, TagIndexer, AccIndexer
-from .config import Config
+from .config import DefaultConfig
 
 
 def id_query(query: Query) -> Query:
@@ -12,7 +12,7 @@ def id_query(query: Query) -> Query:
 @dataclass(frozen=True)
 class DefaultPipleline(SearchPipelineBase):
   @staticmethod
-  def new(search_base: SearchBase, config: Config) -> "DefaultPipleline":
+  def new(search_base: SearchBase, config: DefaultConfig) -> "DefaultPipleline":
     query_processor_pipeline = [id_query]
     knn_search = Search.new(search_base, config.search_config)
     indexer_pipeline = [AccIndexer.new(search_base, config.accindexer_config),

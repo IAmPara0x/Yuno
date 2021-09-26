@@ -50,7 +50,7 @@ class Search(IndexerBase):
     )(q_embedding, self.top_k)
 
     scores = self.dist_fn(dist)
-    result_data = [self.uid_data(idx) for idx in n_idx]
+    result_data = [self.uid_to_data(idx) for idx in n_idx]
     query = Query(query.text, q_embedding)
     return SearchResult(query, result_data, scores)
 
@@ -69,7 +69,7 @@ class AccIndexer(IndexerBase):
   @sort_search
   def __call__(self, search_result: SearchResult) -> SearchResult:
     anime_uids = [
-        anime.uid for anime in self.animes(search_result)]
+        anime.uid for anime in self.get_animes(search_result)]
     unique_uids = unique(anime_uids)
     uids_idxs = compose(list, map)(lambda eq:
                                    [idx for idx, uid in enumerate(
@@ -98,11 +98,11 @@ class TagIndexer(IndexerBase):
 
     if self.indexing_method == TagIndexingMethod.per_category:
       similarity_scores = compose(list, map)(self.per_category_indexing(
-          query_mat), self.animes(search_result))
+          query_mat), self.get_animes(search_result))
     elif self.indexing_method == TagIndexingMethod.all:
       query_mat = query_mat.reshape(-1)
       similarity_scores = compose(list, map)(self.all_category_indexing(
-          query_mat), self.animes(search_result))
+          query_mat), self.get_animes(search_result))
     else:
       raise Exception(f"{self.indexing_method} is not a corret type.")
 
@@ -116,7 +116,7 @@ class TagIndexer(IndexerBase):
     return np.dot(v1, v2)/(np.linalg.norm(v1)*np.linalg.norm(v2))
 
   def tags_mat(self, x: Union[Anime, Query]) -> np.ndarray:
-    tag_cats = self.tag_cats(AllData())
+    tag_cats = self.get_tagcats(AllData())
     rows, cols = len(tag_cats), compose(max, map)(
         lambda cat: len(cat.tag_uids), tag_cats)
     tags_mat = np.zeros((rows, cols))
@@ -129,11 +129,11 @@ class TagIndexer(IndexerBase):
       return (i, j)
 
     if isinstance(x, Anime):
-      anime_tags = self.tags(x.uid)
+      anime_tags = self.get_tags(x.uid)
       i_s, j_s = zip(*map(tag_pos, anime_tags))
       tags_mat[(i_s, j_s)] = x.tag_scores
     elif isinstance(x, Query):
-      all_tags = self.tags(AllData())
+      all_tags = self.get_tags(AllData())
       i_s, j_s = zip(*map(tag_pos, all_tags))
       scores = [self.cos_sim(x.embedding, tag.embedding).item()
                 for tag in all_tags]
