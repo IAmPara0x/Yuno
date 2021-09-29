@@ -35,14 +35,16 @@ class AccIndexerConfig(NamedTuple):
 class SearchConfig(NamedTuple):
   embedding_dim: int
   top_k: int
-  dist_fn: Callable[[np.ndarray], Scores]
 
+class TagSimIndexerConfig(NamedTuple):
+  use_negatives: bool
+  use_sim: bool
 
 @dataclass(frozen=True)
 class Config:
   search_config: SearchConfig
-  tagindexer_config: TagIndexerConfig
   accindexer_config: AccIndexerConfig
+  tagsimindexer_config: TagSimIndexerConfig
 
 
 def inv(x: np.ndarray) -> Scores:
@@ -53,9 +55,7 @@ def acc_sum(scores: Scores) -> float:
   return reduce(operator.add, scores, 0)
 
 
-@dataclass(frozen=True)
-class DefaultConfig(Config):
-  search_config = SearchConfig(1280, 128, inv)
-  tagindexer_config = TagIndexerConfig(TagIndexingMethod.per_category,
-                                       TagIndexingMetric.cosine_similarity)
+class DefaultConfig():
+  search_config = SearchConfig(1280, 128)
   accindexer_config = AccIndexerConfig(acc_sum)
+  tagsimindexer_config = TagSimIndexerConfig(True,True)

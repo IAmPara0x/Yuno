@@ -55,7 +55,7 @@ class Anime:
 @dataclass(init=True, repr=True, eq=True, order=False, frozen=True)
 class Query:
   text: str
-  embedding: Optional[np.ndarray] = field(compare=False)
+  embedding: np.ndarray = field(compare=False)
 
 
 class DataType(Enum):
@@ -78,7 +78,7 @@ class Data:
 class SearchResult:
   query: Query
   data: List[Data]
-  scores: Scores
+  scores: np.ndarray
 
   @property
   def embeddings(self) -> np.ndarray:
@@ -109,6 +109,7 @@ class SearchBase:
   _tag_cats: Dict[TagCatUid, TagCat]
   _genres: Dict[GenreUid, Genre]
 
+
 def singledispatchmethod(func):
     dispatcher = singledispatch(func)
     def wrapper(*args, **kw):
@@ -116,6 +117,7 @@ def singledispatchmethod(func):
     wrapper.register = dispatcher.register
     update_wrapper(wrapper, func)
     return wrapper
+
 
 @dataclass(frozen=True)
 class ImplUidToData:
@@ -252,7 +254,7 @@ class QueryProcessorBase:
 
 
 @dataclass(init=True, repr=False, eq=False, order=False, frozen=True)
-class SearchPipelineBase(metaclass=ABCMeta):
+class SearchPipelineBase(ImplTags, ImplTagCats, ImplAnimes, ImplDatas, ImplTexts,metaclass=ABCMeta):
   query_processor_pipeline: Sequence[Callable[[Query], Query]]
   search: Callable  # NOTE: Bug with mypy thinks self is also an arg
   # actual type:  search: Callable[[Query], SearchResult]
@@ -279,7 +281,7 @@ def sort_search(f):
   return _impl
 
 
-def normalize(norm_f: Optional[Callable[[Scores], Scores]] = None):
+def process_result(norm_f: Optional[Callable[[np.ndarray], np.ndarray]] = None):
   def wrapper(f):
     @wraps(f)
     def _impl(self, *args) -> SearchResult:
