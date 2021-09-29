@@ -1,7 +1,7 @@
 from typing import List
 from dataclasses import dataclass
 from .base import SearchPipelineBase, SearchBase, Query
-from .indexers import Search, TagIndexer, AccIndexer
+from .indexers import Search, TagSimIndexer, AccIndexer
 from .config import DefaultConfig
 
 
@@ -16,6 +16,6 @@ class DefaultPipleline(SearchPipelineBase):
     query_processor_pipeline = [id_query]
     knn_search = Search.new(search_base, config.search_config)
     indexer_pipeline = [AccIndexer.new(search_base, config.accindexer_config),
-                        TagIndexer.new(search_base, config.tagindexer_config)]
+                        TagSimIndexer.new(search_base, config.tagsimindexer_config)]
 
     return DefaultPipleline(query_processor_pipeline, knn_search, indexer_pipeline)
