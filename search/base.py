@@ -230,7 +230,29 @@ class ImplTexts:
   def _searchres_texts(self, search_result: SearchResult) -> List[str]:
     return compose(list, map)(lambda x: x.text, search_result.data)
 
-class Impl(ImplTags, ImplTagCats, ImplAnimes, ImplDatas, ImplTexts): pass
+
+@dataclass(frozen=True)
+class ImplEmbeddings:
+  search_base: SearchBase
+
+  @singledispatchmethod
+  def get_embeddings(self, d_type) -> np.ndarray:
+    raise NotImplementedError
+
+  @get_embeddings.register(SearchResult)
+  def _searchres_embeddings(self, instance: SearchResult) -> np.ndarray:
+    return compose(np.vstack,list, map)(lambda x: x.embedding, instance.data)
+
+  @get_embeddings.register(Query)
+  def _query_embedding(self, instance: Query) -> np.ndarray:
+    return instance.embedding
+
+  @get_embeddings.register(Data)
+  def _data_embedding(self, instance: Data) -> np.ndarray:
+    return instance.embedding
+
+
+class Impl(ImplTags, ImplTagCats, ImplAnimes, ImplDatas, ImplTexts, ImplEmbeddings): pass
 
 @dataclass(frozen=True)
 class IndexerBase(Impl):
