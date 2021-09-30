@@ -255,7 +255,7 @@ class QueryProcessorBase:
 
 
 @dataclass(init=True, repr=False, eq=False, order=False, frozen=True)
-class SearchPipelineBase(metaclass=ABCMeta):
+class SearchPipelineBase(Impl):
   query_processor_pipeline: Sequence[Callable[[Query], Query]]
   search: Callable  # NOTE: Bug with mypy thinks self is also an arg
   # actual type:  search: Callable[[Query], SearchResult]
