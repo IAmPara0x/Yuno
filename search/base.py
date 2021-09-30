@@ -230,9 +230,10 @@ class ImplTexts:
   def _searchres_texts(self, search_result: SearchResult) -> List[str]:
     return compose(list, map)(lambda x: x.text, search_result.data)
 
+class Impl(ImplTags, ImplTagCats, ImplAnimes, ImplDatas, ImplTexts): pass
 
 @dataclass(frozen=True)
-class IndexerBase(ImplTags, ImplTagCats, ImplAnimes, ImplDatas, ImplTexts):
+class IndexerBase(Impl):
   @staticmethod
   def new(search_base: SearchBase, config):
     raise NotImplementedError
@@ -254,7 +255,7 @@ class QueryProcessorBase:
 
 
 @dataclass(init=True, repr=False, eq=False, order=False, frozen=True)
-class SearchPipelineBase(ImplTags, ImplTagCats, ImplAnimes, ImplDatas, ImplTexts,metaclass=ABCMeta):
+class SearchPipelineBase(metaclass=ABCMeta):
   query_processor_pipeline: Sequence[Callable[[Query], Query]]
   search: Callable  # NOTE: Bug with mypy thinks self is also an arg
   # actual type:  search: Callable[[Query], SearchResult]

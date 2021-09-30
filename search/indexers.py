@@ -50,7 +50,7 @@ class Search(IndexerBase):
 
     result_data = [self.uid_to_data(int(idx)) for idx in n_idx]
     query = Query(query.text, q_embedding)
-    scores = np.array([cos_sim(q_embedding, data.embedding_dim)
+    scores = np.array([cos_sim(q_embedding, data.embedding)
                       for data in result_data])
     return SearchResult(query, result_data, scores)
 
@@ -96,9 +96,9 @@ class TagSimIndexer(IndexerBase):
 
     tag_scores = []
     for anime in self.get_animes(search_result):
-      mat = np.vstack([tag.embedding for tag in self.get_tags(anime.uid)])
+      mat = np.vstack([tag.embedding for tag in self.get_tags(anime.uid)]).T
       tag_scores.append(self.linear_approx(mat, q_embd.squeeze()))
-    scores = np.e ** np.array(tag_scores) + search_result.scores
+    scores = np.array(tag_scores) * search_result.scores
     return SearchResult.new(search_result, scores=scores)
 
   def linear_approx(self, mat: np.ndarray, x: np.ndarray) -> float:
