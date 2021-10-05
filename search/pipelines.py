@@ -16,7 +16,7 @@ class DefaultPipleline(SearchPipelineBase):
     query_processor_pipeline = [id_query]
     knn_search = Search.new(search_base, config.search_cfg)
     indexer_pipeline = [TagSimIdxr.new(search_base, config.tagsimindexer_cfg),
-                        NodeIdxr(search_base,config.nodeindexer_cfg),
+                        NodeIdxr.new(search_base,config.nodeindexer_cfg),
                         AccIdxr.new(search_base, config.accindexer_cfg)]
     return DefaultPipleline(search_base,
                             query_processor_pipeline,

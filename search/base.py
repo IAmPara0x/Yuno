@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from returns.maybe import Maybe
 from functools import wraps, singledispatch, update_wrapper
-from toolz.curried import reduce, map, compose, concat, pipe, nth  # type: ignore
+from toolz.curried import map, compose, concat, pipe, nth  # type: ignore
 import numpy as np
 
 
@@ -51,6 +51,7 @@ class Anime:
   genre_uids: List[GenreUid] = field(compare=False)
   tag_uids: List[TagUid] = field(compare=False)
   tag_scores: np.ndarray = field(compare=False)
+  data_uids: List[DataUid]
 
 
 @dataclass(init=True, repr=True, eq=True, order=False, frozen=True)
@@ -93,7 +94,8 @@ class SearchResult:
 class SearchBase:
   model: Model
   index: Any
-  _search_data: List[Data]
+  _data_uids: List[DataUid]
+  _search_data: Dict[DataUid,Data]
   _animes: Dict[AnimeUid, Anime]
   _tags: Dict[TagUid, Tag]
   _tag_cats: Dict[TagCatUid, TagCat]
@@ -134,9 +136,13 @@ class ImplUidData:
   def _get_anime(self, instance: AnimeUid) -> Anime:
     return self.search_base._animes[instance]
 
+  @uid_data.register(DataUid)
+  def _get_data(self, instance: DataUid) -> Data:
+    return self.search_base._search_data[instance]
+
   @uid_data.register(int)
   def _get_searchdata(self, instance: int) -> Data:
-    return self.search_base._search_data[instance]
+    return self._get_data(self.search_base._data_uids[instance])
 
 
 @dataclass(frozen=True)
@@ -191,16 +197,16 @@ class ImplAnimes(ImplUidData):
 
 
 @dataclass(frozen=True)
-class ImplDatas:
+class ImplDatas(ImplUidData):
   search_base: SearchBase
 
   @singledispatchmethod
   def get_datas(self, d_type) -> List[Data]:
     raise NotImplementedError
 
-  @get_datas.register(AllData)
-  def _all_datas(self, _: AllData) -> List[Data]:
-    return self.search_base._search_data
+  @get_datas.register(Anime)
+  def _anime_datas(self, instance: Anime) -> List[Data]:
+    return [self.uid_data(data_uid) for data_uid in instance.data_uids]
 
   @get_datas.register(SearchResult)
   def _searchres_datas(self, instance: SearchResult) -> List[Data]:

@@ -1,11 +1,11 @@
-from typing import Union, Tuple, List, Callable, Optional
-from toolz.curried import compose, flip, map, unique, partial, first, curry  # type: ignore
+from typing import Union, Tuple, List, Callable, Dict
+from toolz.curried import compose, flip, map, unique, first, curry, remove, reduce  # type: ignore
 from dataclasses import dataclass
 import numpy as np
-import torch
 import operator
 
-from .base import (Anime,
+from .base import (AnimeUid,
+                   Anime,
                    Tag,
                    Query,
                    Data,
@@ -101,7 +101,7 @@ class TagSimIdxr(IndexerBase):
 
     tag_scores = []
     for idx,anime in enumerate(self.get_animes(search_result)):
-      if len(anime.tag_uids) == 0:
+      if not len(anime.tag_uids):
         tag_scores.append(search_result.scores[idx])
       else:
         mat = np.vstack([tag.embedding for tag in self.get_tags(anime)]).T
@@ -129,34 +129,37 @@ class NodeIdxr(IndexerBase):
 
   @sort_search
   def __call__(self, search_result: SearchResult) -> SearchResult:
-    uids = unique(search_result.datas,key=lambda data: data.anime_uid)
-    result_data = {uid: [] for uid in uids}
+    uids = [data.anime_uid for data in
+            unique(search_result.datas,key=lambda data: data.anime_uid)]
 
-    for data in self.get_datas(AllData()):
-      if data.anime_uid in uids and data.type == DataType.long:
-        result_data[data.anime_uid].append(torch.tensor(data.embedding))
-
-    result_data = {uid: torch.vstack(result_data[uid]) for uid in uids}
-
-    rank_scores = []
-    for data in self.get_datas(search_result):
-      if data.type == DataType.long:
-        rank_scores.append(self.get_rank(torch.tensor(data.embedding),
-                                        result_data[data.anime_uid])
-                          )
+    result_datas: Dict[AnimeUid,List[Data]] = {uid: compose(
+                                                      list,
+                                                      remove(lambda data: not data.type == DataType.long),
+                                                      self.get_datas,
+                                                      self.uid_data)(uid)
+                                                    for uid in uids}
+    def helper(rank_scores,data):
+      if not len(result_datas[data.anime_uid]):
+        rank_scores.append(1)
       else:
-        sims = torch.cosine_similarity(torch.tensor(data.embedding).unsqueeze(0),
-                                result_data[data.anime_uid])
-        rank_scores.append(self.get_rank(result_data[data.anime_uid][torch.argmax(sims)],
-                                        result_data[data.anime_uid])
-                          )
-    rank_scores = np.array(rank_scores)
-    new_scores = search_result.scores * rank_scores * self.weight
-    return SearchResult.new(search_result,scores=new_scores)
+        mat = np.vstack([x.embedding for x in result_datas[data.anime_uid]])
+        v = data.embedding
+        if data.type == DataType.long:
+          rank_scores.append(self.node_rank(v,mat))
+        else:
+          max_idx = np.argmax((mat @ v)/
+                              (np.linalg.norm(mat,axis=1)*np.linalg.norm(v))
+                             )
+          rank_scores.append(self.node_rank(mat[max_idx],mat))
+      return rank_scores
 
-  def get_rank(self,x,mat):
-    xs = torch.cosine_similarity(x.unsqueeze(0), mat)
-    return torch.sum(xs)/len(xs)
+    rank_scores = compose(np.array,reduce)(helper,self.get_datas(search_result),[])
+    new_scores = search_result.scores * rank_scores * self.weight
+    return SearchResult.new(search_result, scores=new_scores)
+
+  def node_rank(self,v: np.ndarray, mat: np.ndarray) -> float:
+    sims = (mat @ v)/ (np.linalg.norm(mat,axis=1)*np.linalg.norm(v))
+    return np.average(sims).item()
 
 
 #NOTE: This indexer doesn't score very well
