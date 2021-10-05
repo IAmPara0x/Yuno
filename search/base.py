@@ -256,7 +256,7 @@ class IndexerBase(Impl):
   def knn_search(self, q_embedding: np.ndarray, top_k: int) -> Tuple[np.ndarray, np.ndarray]:
     return self.search_base.index.search(q_embedding, top_k)
 
-  def __call__(self, search_result: SearchResult) -> SearchResult:
+  def __call__(self, search_result) -> SearchResult:
     raise NotImplementedError
 
 

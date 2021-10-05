@@ -43,11 +43,16 @@ class TagSimIdxrCfg(NamedTuple):
   use_sim: bool
   weight: float
 
+class NodeIdxrCfg(NamedTuple):
+  weight: float
+
+
 @dataclass(frozen=True)
 class Config:
   search_cfg: SearchCfg
   accindexer_cfg: AccIdxrCfg
   tagsimindexer_cfg: TagSimIdxrCfg
+  nodeindexer_cfg: NodeIdxrCfg
 
 
 def inv(x: np.ndarray) -> Scores:
@@ -62,3 +67,4 @@ class DefaultCfg():
   search_cfg = SearchCfg(1280, 128, 1.0)
   accindexer_cfg = AccIdxrCfg(acc_sum)
   tagsimindexer_cfg = TagSimIdxrCfg(True,True,2.0)
+  nodeindexer_cfg = NodeIdxrCfg(1.0)
