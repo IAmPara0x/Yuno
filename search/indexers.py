@@ -37,7 +37,6 @@ class Search(IndexerBase):
   def new(search_base: SearchBase, config: SearchCfg) -> "Search":
     return Search(search_base, config.embedding_dim, config.top_k, config.weight)
 
-  @sort_search
   def __call__(self, query: Query) -> SearchResult:
     q_embedding = compose(
         flip(np.expand_dims, 0),
@@ -49,9 +48,9 @@ class Search(IndexerBase):
         self.knn_search
     )(q_embedding, self.top_k)
 
-    result_data = map(compose(self.uid_data, int), n_idx)
+    result_data = compose(list,map)(compose(self.uid_data, int), n_idx)
     query = Query(query.text, q_embedding)
-    scores = np.fromiter(map(cos_sim(q_embedding), result_data),
+    scores = np.fromiter(map(lambda data: cos_sim(q_embedding, data.embedding), result_data),
                          dtype=np.float32)
     return SearchResult(query, result_data, self.weight*scores)
 
@@ -70,7 +69,7 @@ class AccIdxr(IndexerBase):
         anime.uid for anime in self.get_animes(search_result)]
     unique_uids = unique(anime_uids)
 
-    uids_idxs = map(lambda eq:
+    uids_idxs = compose(list,map)(lambda eq:
                     [idx for idx, uid in enumerate(anime_uids) if eq(uid)],
                     map(curry(operator.eq), unique_uids))
 
@@ -79,7 +78,7 @@ class AccIdxr(IndexerBase):
             uids_idxs),
         dtype=np.float32)
     result_data = [search_result.datas[idx] for idx in map(first, uids_idxs)]
-    return SearchResult.new(search_result, data=result_data, scores=scores)
+    return SearchResult.new(search_result, datas=result_data, scores=scores)
 
 
 @dataclass(init=True, frozen=True)

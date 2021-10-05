@@ -287,10 +287,10 @@ def sort_search(f):
 
     search_result = f(self, *args)
 
-    data = [data for _, data in sorted(zip(search_result.scores, search_result.data),
+    datas = [data for _, data in sorted(zip(search_result.scores, search_result.datas),
                                        key=lambda x: x[0], reverse=True)]
     scores = compose(np.array, sorted)(search_result.scores, reverse=True)
-    return SearchResult.new(search_result, data=data, scores=scores)
+    return SearchResult.new(search_result, datas=datas, scores=scores)
   return _impl
 
 
