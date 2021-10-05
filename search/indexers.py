@@ -97,11 +97,15 @@ class TagSimIdxr(IndexerBase):
     approx_f = self.linear_approx(q_embd.squeeze())
 
     tag_scores = []
-    for anime in self.get_animes(search_result):
-      mat = np.vstack([tag.embedding for tag in self.get_tags(anime)]).T
-      tag_scores.append(approx_f(mat))
+    for idx,anime in enumerate(self.get_animes(search_result)):
+      if len(anime.tag_uids) == 0:
+        tag_scores.append(search_result.scores[idx])
+      else:
+        mat = np.vstack([tag.embedding for tag in self.get_tags(anime)]).T
+        tag_scores.append(approx_f(mat))
     scores =  self.weight * np.array(tag_scores) + search_result.scores
     return SearchResult.new(search_result, scores=scores)
+
 
   @curry
   def linear_approx(self, x: np.ndarray, mat: np.ndarray) -> float:
