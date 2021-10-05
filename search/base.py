@@ -2,10 +2,9 @@ from typing import Sequence, List, Callable, Any, Dict, Union, Tuple, NewType, O
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from returns.maybe import Maybe
-from functools import wraps,singledispatch,update_wrapper
+from functools import wraps, singledispatch, update_wrapper
 from toolz.curried import reduce, map, compose, concat, pipe, nth  # type: ignore
 import numpy as np
-from abc import ABCMeta, abstractmethod
 
 
 class GenreUid(int): pass
@@ -17,9 +16,11 @@ class Scores(np.ndarray): pass
 class Embedding(np.ndarray): pass
 class AllData(object): pass
 
+
 from . import utils
-from .config import Config
 from .model import Model
+from .config import Config
+
 
 @dataclass(init=True, repr=True, eq=True, order=False, frozen=True)
 class Genre:
@@ -77,12 +78,8 @@ class Data:
 @dataclass(init=True, repr=False, eq=False, order=False, frozen=True)
 class SearchResult:
   query: Query
-  data: List[Data]
+  datas: List[Data]
   scores: np.ndarray
-
-  @property
-  def embeddings(self) -> np.ndarray:
-    return compose(np.vstack, list, map)(lambda x: x.embedding, self.data)
 
   @staticmethod
   def new(prev_result: "SearchResult", **kwargs) -> "SearchResult":
@@ -90,13 +87,6 @@ class SearchResult:
     kwargs.update({field_name: getattr(prev_result, field_name)
                   for field_name in remaining_fields})
     return SearchResult(**kwargs)
-
-  def __getitem__(self, idx: int) -> Tuple[float, Data]:
-    return self._result(idx)
-
-  def _result(self, idx: int) -> Tuple[float, Data]:
-    data = (self.scores, self.data)
-    return compose(tuple, map)(nth(idx), data)
 
 
 @dataclass(init=True, repr=False, eq=False, order=False, frozen=True)
@@ -111,45 +101,46 @@ class SearchBase:
 
 
 def singledispatchmethod(func):
-    dispatcher = singledispatch(func)
-    def wrapper(*args, **kw):
-        return dispatcher.dispatch(args[1].__class__)(*args, **kw)
-    wrapper.register = dispatcher.register
-    update_wrapper(wrapper, func)
-    return wrapper
+  dispatcher = singledispatch(func)
+
+  def wrapper(*args, **kw):
+    return dispatcher.dispatch(args[1].__class__)(*args, **kw)
+  wrapper.register = dispatcher.register
+  update_wrapper(wrapper, func)
+  return wrapper
 
 
 @dataclass(frozen=True)
-class ImplUidToData:
+class ImplUidData:
   search_base: SearchBase
 
   @singledispatchmethod
-  def uid_to_data(self, uid):
+  def uid_data(self, uid):
     raise NotImplementedError
 
-  @uid_to_data.register(GenreUid)
-  def _get_genre(self, id: GenreUid) -> Genre:
-    return self.search_base._genres[id]
+  @uid_data.register(GenreUid)
+  def _get_genre(self, instance: GenreUid) -> Genre:
+    return self.search_base._genres[instance]
 
-  @uid_to_data.register(TagUid)
-  def _get_tag(self, id: TagUid) -> Tag:
-    return self.search_base._tags[id]
+  @uid_data.register(TagUid)
+  def _get_tag(self, instance: TagUid) -> Tag:
+    return self.search_base._tags[instance]
 
-  @uid_to_data.register(TagCatUid)
-  def _get_tagcat(self, id: TagCatUid) -> TagCat:
-    return self.search_base._tag_cats[id]
+  @uid_data.register(TagCatUid)
+  def _get_tagcat(self, instance: TagCatUid) -> TagCat:
+    return self.search_base._tag_cats[instance]
 
-  @uid_to_data.register(AnimeUid)
-  def _get_anime(self, id: AnimeUid) -> Anime:
-    return self.search_base._animes[id]
+  @uid_data.register(AnimeUid)
+  def _get_anime(self, instance: AnimeUid) -> Anime:
+    return self.search_base._animes[instance]
 
-  @uid_to_data.register(int)
-  def _get_searchdata(self, idx: int) -> Data:
-    return self.search_base._search_data[idx]
+  @uid_data.register(int)
+  def _get_searchdata(self, instance: int) -> Data:
+    return self.search_base._search_data[instance]
 
 
 @dataclass(frozen=True)
-class ImplTags(ImplUidToData):
+class ImplTags(ImplUidData):
   search_base: SearchBase
 
   @singledispatchmethod
@@ -160,15 +151,13 @@ class ImplTags(ImplUidToData):
   def _all_tags(self, _: AllData) -> List[Tag]:
     return list(self.search_base._tags.values())
 
-  @get_tags.register(AnimeUid)
-  def _anime_tags(self, a_uid: AnimeUid) -> List[Tag]:
-    anime = self.uid_to_data(a_uid)
-    return compose(list, map)(self.uid_to_data, anime.tag_uids)
+  @get_tags.register(Anime)
+  def _anime_tags(self, instance: Anime) -> List[Tag]:
+    return [self.uid_data(tag_uid) for tag_uid in instance.tag_uids]
 
-  @get_tags.register(TagCatUid)
-  def _tagcat_tags(self, c_uid: TagCatUid) -> List[Tag]:
-    cat = self.uid_to_data(c_uid)
-    return compose(list, map)(self.uid_to_data, cat.tag_uids)
+  @get_tags.register(TagCat)
+  def _tagcat_tags(self, instance: TagCat) -> List[Tag]:
+    return [self.uid_data(tag_uid) for tag_uid in instance.tag_uids]
 
 
 @dataclass(frozen=True)
@@ -185,7 +174,7 @@ class ImplTagCats:
 
 
 @dataclass(frozen=True)
-class ImplAnimes(ImplUidToData):
+class ImplAnimes(ImplUidData):
   search_base: SearchBase
 
   @singledispatchmethod
@@ -193,8 +182,8 @@ class ImplAnimes(ImplUidToData):
     raise NotImplementedError
 
   @get_animes.register(SearchResult)
-  def _searchres_animes(self, search_result: SearchResult) -> List[Anime]:
-    return compose(list, map)(lambda x: self.uid_to_data(x.anime_uid), search_result.data)
+  def _searchres_animes(self, instance: SearchResult) -> List[Anime]:
+    return [self.uid_data(data.anime_uid) for data in instance.datas]
 
   @get_animes.register(AllData)
   def _all_animes(self, _: AllData) -> List[Anime]:
@@ -214,8 +203,8 @@ class ImplDatas:
     return self.search_base._search_data
 
   @get_datas.register(SearchResult)
-  def _searchres_datas(self, search_result: SearchResult) -> List[Data]:
-    return search_result.data
+  def _searchres_datas(self, instance: SearchResult) -> List[Data]:
+    return instance.datas
 
 
 @dataclass(frozen=True)
@@ -227,8 +216,8 @@ class ImplTexts:
     raise NotImplementedError
 
   @get_texts.register(SearchResult)
-  def _searchres_texts(self, search_result: SearchResult) -> List[str]:
-    return compose(list, map)(lambda x: x.text, search_result.data)
+  def _searchres_texts(self, instance: SearchResult) -> List[str]:
+    return [data.text for data in instance.datas]
 
 
 @dataclass(frozen=True)
@@ -241,7 +230,7 @@ class ImplEmbeddings:
 
   @get_embeddings.register(SearchResult)
   def _searchres_embeddings(self, instance: SearchResult) -> np.ndarray:
-    return compose(np.vstack,list, map)(lambda x: x.embedding, instance.data)
+    return np.vstack([data.embedding for data in instance.datas])
 
   @get_embeddings.register(Query)
   def _query_embedding(self, instance: Query) -> np.ndarray:
@@ -253,6 +242,7 @@ class ImplEmbeddings:
 
 
 class Impl(ImplTags, ImplTagCats, ImplAnimes, ImplDatas, ImplTexts, ImplEmbeddings): pass
+
 
 @dataclass(frozen=True)
 class IndexerBase(Impl):

@@ -1,5 +1,6 @@
 from typing import Callable, NewType, Optional
 import numpy as np
+from toolz.curried import curry # type: ignore
 
 
 def sigmoid(x: np.ndarray) -> np.ndarray:
@@ -19,5 +20,6 @@ def rescale_scores(t_min: int = 1, t_max: int = 2, inverse: bool = False) -> Cal
   return dispatch
 
 
+@curry
 def cos_sim(v1: np.ndarray, v2: np.ndarray) -> np.ndarray:
   return np.dot(v1, v2)/(np.linalg.norm(v1)*np.linalg.norm(v2))

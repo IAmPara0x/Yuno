@@ -8,43 +8,46 @@ import operator
 from .base import Scores
 
 
-class TagIndexingMethod(Enum):
+class TagIdxingMethod(Enum):
   all = auto()
   per_category = auto()
 
 
-class TagIndexingMetric(Enum):
+class TagIdxingMetric(Enum):
   cosine_similarity = auto()
   l2norm = auto()
 
 
-class TagIndexerConfig(NamedTuple):
-  indexing_method: TagIndexingMethod
-  indexing_metric: TagIndexingMetric
+class TagIdxrCfg(NamedTuple):
+  indexing_method: TagIdxingMethod
+  indexing_metric: TagIdxingMetric
 
 
-class AccIndexingMetric(Enum):
+class AccIdxingMetric(Enum):
   add = auto()
   multiply = auto()
 
 
-class AccIndexerConfig(NamedTuple):
+class AccIdxrCfg(NamedTuple):
   acc_fn: Callable[[Scores], float]
 
 
-class SearchConfig(NamedTuple):
+class SearchCfg(NamedTuple):
   embedding_dim: int
   top_k: int
+  weight: float
 
-class TagSimIndexerConfig(NamedTuple):
+
+class TagSimIdxrCfg(NamedTuple):
   use_negatives: bool
   use_sim: bool
+  weight: float
 
 @dataclass(frozen=True)
 class Config:
-  search_config: SearchConfig
-  accindexer_config: AccIndexerConfig
-  tagsimindexer_config: TagSimIndexerConfig
+  search_cfg: SearchCfg
+  accindexer_cfg: AccIdxrCfg
+  tagsimindexer_cfg: TagSimIdxrCfg
 
 
 def inv(x: np.ndarray) -> Scores:
@@ -55,7 +58,7 @@ def acc_sum(scores: Scores) -> float:
   return reduce(operator.add, scores, 0)
 
 
-class DefaultConfig():
-  search_config = SearchConfig(1280, 128)
-  accindexer_config = AccIndexerConfig(acc_sum)
-  tagsimindexer_config = TagSimIndexerConfig(True,True)
+class DefaultCfg():
+  search_cfg = SearchCfg(1280, 128, 1.0)
+  accindexer_cfg = AccIdxrCfg(acc_sum)
+  tagsimindexer_cfg = TagSimIdxrCfg(True,True,2.0)

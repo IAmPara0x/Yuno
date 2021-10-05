@@ -16,12 +16,12 @@ from .base import (Anime,
                    process_result,
                    sort_search)
 
-from .config import (SearchConfig,
-                     AccIndexerConfig,
-                     TagIndexerConfig,
-                     TagSimIndexerConfig,
-                     TagIndexingMethod,
-                     TagIndexingMetric)
+from .config import (SearchCfg,
+                     AccIdxrCfg,
+                     TagIdxrCfg,
+                     TagSimIdxrCfg,
+                     TagIdxingMethod,
+                     TagIdxingMetric)
 
 from .model import Model
 from .utils import rescale_scores, cos_sim
@@ -31,10 +31,11 @@ from .utils import rescale_scores, cos_sim
 class Search(IndexerBase):
   embedding_dim: int
   top_k: int
+  weight: float
 
   @staticmethod
-  def new(search_base: SearchBase, config: SearchConfig) -> "Search":
-    return Search(search_base, config.embedding_dim, config.top_k)
+  def new(search_base: SearchBase, config: SearchCfg) -> "Search":
+    return Search(search_base, config.embedding_dim, config.top_k, config.weight)
 
   @sort_search
   def __call__(self, query: Query) -> SearchResult:
@@ -48,60 +49,63 @@ class Search(IndexerBase):
         self.knn_search
     )(q_embedding, self.top_k)
 
-    result_data = [self.uid_to_data(int(idx)) for idx in n_idx]
+    result_data = map(compose(self.uid_data, int), n_idx)
     query = Query(query.text, q_embedding)
-    scores = np.array([cos_sim(q_embedding, data.embedding)
-                      for data in result_data])
-    return SearchResult(query, result_data, scores)
+    scores = np.fromiter(map(cos_sim(q_embedding), result_data),
+                         dtype=np.float32)
+    return SearchResult(query, result_data, self.weight*scores)
 
 
 @dataclass(init=True, frozen=True)
-class AccIndexer(IndexerBase):
-  acc_fn: Callable  # NOTE: Bug with mypy thinks self is also an arg
-  # actual type:  acc_fn: Callable[[Scores], float]
+class AccIdxr(IndexerBase):
+  acc_fn: Callable
 
   @staticmethod
-  def new(search_base: SearchBase, config: AccIndexerConfig) -> "AccIndexer":
-    return AccIndexer(search_base, config.acc_fn)
+  def new(search_base: SearchBase, config: AccIdxrCfg) -> "AccIdxr":
+    return AccIdxr(search_base, config.acc_fn)
 
   @sort_search
   def __call__(self, search_result: SearchResult) -> SearchResult:
     anime_uids = [
         anime.uid for anime in self.get_animes(search_result)]
     unique_uids = unique(anime_uids)
-    uids_idxs = compose(list, map)(lambda eq:
-                                   [idx for idx, uid in enumerate(
-                                       anime_uids) if eq(uid)],
-                                   map(curry(operator.eq), unique_uids))
 
-    scores = compose(list, map
-                     )(lambda uid_idxs: np.sum(search_result.scores[uid_idxs]).item(), uids_idxs)
-    scores = np.array(scores, dtype=np.float32)
-    result_data = [search_result.data[idx] for idx in map(first, uids_idxs)]
+    uids_idxs = map(lambda eq:
+                    [idx for idx, uid in enumerate(anime_uids) if eq(uid)],
+                    map(curry(operator.eq), unique_uids))
+
+    scores = np.fromiter(
+        map(lambda uid_idxs: self.acc_fn(search_result.scores[uid_idxs]),
+            uids_idxs),
+        dtype=np.float32)
+    result_data = [search_result.datas[idx] for idx in map(first, uids_idxs)]
     return SearchResult.new(search_result, data=result_data, scores=scores)
 
 
 @dataclass(init=True, frozen=True)
-class TagSimIndexer(IndexerBase):
+class TagSimIdxr(IndexerBase):
   use_negatives: bool
   use_sim: bool
+  weight: float
 
   @staticmethod
-  def new(search_base: SearchBase, config: TagSimIndexerConfig) -> "TagSimIndexer":
-    return TagSimIndexer(search_base, config.use_negatives, config.use_sim)
+  def new(search_base: SearchBase, config: TagSimIdxrCfg) -> "TagSimIdxr":
+    return TagSimIdxr(search_base, config.use_negatives, config.use_sim, config.weight)
 
   @sort_search
   def __call__(self, search_result: SearchResult) -> SearchResult:
     q_embd = search_result.query.embedding
+    approx_f = self.linear_approx(q_embd.squeeze())
 
     tag_scores = []
     for anime in self.get_animes(search_result):
-      mat = np.vstack([tag.embedding for tag in self.get_tags(anime.uid)]).T
-      tag_scores.append(self.linear_approx(mat, q_embd.squeeze()))
-    scores = np.array(tag_scores) * search_result.scores
+      mat = np.vstack([tag.embedding for tag in self.get_tags(anime)]).T
+      tag_scores.append(approx_f(mat))
+    scores =  self.weight * np.array(tag_scores) + search_result.scores
     return SearchResult.new(search_result, scores=scores)
 
-  def linear_approx(self, mat: np.ndarray, x: np.ndarray) -> float:
+  @curry
+  def linear_approx(self, x: np.ndarray, mat: np.ndarray) -> float:
     y = (mat.T @ mat) @ mat.T @ x
     if not self.use_negatives and len(np.where(y < 0)[0]) > 0:
       mat = mat.T[np.where(y > 0)].T
@@ -110,24 +114,25 @@ class TagSimIndexer(IndexerBase):
       return cos_sim(mat@y, x).item()
 
 
+#NOTE: This indexer doesn't score very well
 @dataclass(init=True, frozen=True)
-class TagIndexer(IndexerBase):
-  indexing_method: TagIndexingMethod
-  indexing_metric: TagIndexingMetric
+class TagIdxr(IndexerBase):
+  indexing_method: TagIdxingMethod
+  indexing_metric: TagIdxingMetric
 
   @staticmethod
-  def new(search_base: SearchBase, config: TagIndexerConfig) -> "TagIndexer":
-    return TagIndexer(search_base, config.indexing_method, config.indexing_metric)
+  def new(search_base: SearchBase, config: TagIdxrCfg) -> "TagIdxr":
+    return TagIdxr(search_base, config.indexing_method, config.indexing_metric)
 
   @process_result(rescale_scores(t_min=1, t_max=8, inverse=False))
   @sort_search
   def __call__(self, search_result: SearchResult) -> SearchResult:
     query_mat = self.tags_mat(search_result.query)
 
-    if self.indexing_method == TagIndexingMethod.per_category:
+    if self.indexing_method == TagIdxingMethod.per_category:
       similarity_scores = compose(list, map)(self.per_category_indexing(
           query_mat), self.get_animes(search_result))
-    elif self.indexing_method == TagIndexingMethod.all:
+    elif self.indexing_method == TagIdxingMethod.all:
       query_mat = query_mat.reshape(-1)
       similarity_scores = compose(list, map)(self.all_category_indexing(
           query_mat), self.get_animes(search_result))
@@ -153,7 +158,7 @@ class TagIndexer(IndexerBase):
       return (i, j)
 
     if isinstance(x, Anime):
-      anime_tags = self.get_tags(x.uid)
+      anime_tags = self.get_tags(x)
       i_s, j_s = zip(*map(tag_pos, anime_tags))
       tags_mat[(i_s, j_s)] = x.tag_scores
     elif isinstance(x, Query):
