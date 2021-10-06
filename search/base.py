@@ -48,10 +48,10 @@ class TagCat:
 class Anime:
   uid: AnimeUid
   name: str = field(compare=False)
-  genre_uids: List[GenreUid] = field(compare=False)
-  tag_uids: List[TagUid] = field(compare=False)
-  tag_scores: np.ndarray = field(compare=False)
-  data_uids: List[DataUid]
+  genre_uids: List[GenreUid] = field(compare=False, repr=False)
+  tag_uids: List[TagUid] = field(compare=False, repr=False)
+  tag_scores: np.ndarray = field(compare=False, repr=False)
+  data_uids: List[DataUid] = field(compare=False, repr=False)
 
 
 @dataclass(init=True, repr=True, eq=True, order=False, frozen=True)
