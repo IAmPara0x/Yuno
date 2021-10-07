@@ -40,6 +40,8 @@ class Search(IndexerBase):
   def new(search_base: SearchBase, config: SearchCfg) -> "Search":
     return Search(search_base, config.embedding_dim, config.top_k, config.weight)
 
+  @process_result(rescale_scores(t_min=0.5, t_max=3, inverse=False))
+  @sort_search
   def __call__(self, query: Query) -> SearchResult:
     q_embedding = compose(
         flip(np.expand_dims, 0),
@@ -51,10 +53,19 @@ class Search(IndexerBase):
         self.knn_search
     )(q_embedding, self.top_k)
 
-    result_data = compose(list,map)(compose(self.uid_data, int), n_idx)
+    def acc_fn(datas,idx):
+      data = compose(self.uid_data,int)(idx)
+      if data.type == DataType.recs:
+        datas.extend(map(lambda a_uid: Data.new(data,anime_uid=a_uid,type=DataType.short),
+                          data.anime_uid))
+      else:
+        datas.append(data)
+      return datas
+
+    result_data = reduce(acc_fn,n_idx,[])
     query = Query(query.text, q_embedding)
-    scores = np.fromiter(map(lambda data: cos_sim(q_embedding, data.embedding), result_data),
-                         dtype=np.float32)
+    scores = np.fromiter(map(compose(cos_sim(q_embedding),self.get_embeddings),
+                            result_data), dtype=np.float32)
     return SearchResult(query, result_data, self.weight*scores)
 
 
@@ -148,8 +159,7 @@ class NodeIdxr(IndexerBase):
           rank_scores.append(self.node_rank(v,mat))
         else:
           max_idx = np.argmax((mat @ v)/
-                              (np.linalg.norm(mat,axis=1)*np.linalg.norm(v))
-                             )
+                              (np.linalg.norm(mat,axis=1)*np.linalg.norm(v)))
           rank_scores.append(self.node_rank(mat[max_idx],mat))
       return rank_scores
 

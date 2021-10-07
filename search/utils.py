@@ -7,7 +7,7 @@ def sigmoid(x: np.ndarray) -> np.ndarray:
   return 1/(1+np.exp(-x))
 
 
-def rescale_scores(t_min: int = 1, t_max: int = 2, inverse: bool = False) -> Callable[[np.ndarray], np.ndarray]:
+def rescale_scores(t_min: float = 1, t_max: float = 2, inverse: bool = False) -> Callable[[np.ndarray], np.ndarray]:
   def dispatch(scores: np.ndarray) -> np.ndarray:
     r_min, r_max = min(scores), max(scores)
 

@@ -69,11 +69,18 @@ class DataType(Enum):
 @dataclass(init=True, repr=True, eq=True, order=False, frozen=True)
 class Data:
   data_uid: DataUid = field(repr=False)
-  anime_uid: AnimeUid
+  anime_uid: Union[AnimeUid,List[AnimeUid]]
   embedding: Embedding = field(repr=False, compare=False)
   text: str = field(compare=False)
   rating: int = field(compare=False)
   type: DataType = field(compare=False, repr=False)
+
+  @staticmethod
+  def new(prev_result: "Data", **kwargs) -> "Data":
+    remaining_fields = set(prev_result.__dict__.keys()) - set(kwargs.keys())
+    kwargs.update({field_name: getattr(prev_result, field_name)
+                  for field_name in remaining_fields})
+    return Data(**kwargs)
 
 
 @dataclass(init=True, repr=False, eq=False, order=False, frozen=True)

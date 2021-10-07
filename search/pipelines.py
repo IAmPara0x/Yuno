@@ -15,8 +15,8 @@ class DefaultPipleline(SearchPipelineBase):
   def new(search_base: SearchBase, config: DefaultCfg) -> "DefaultPipleline":
     query_processor_pipeline = [id_query]
     knn_search = Search.new(search_base, config.search_cfg)
-    indexer_pipeline = [TagSimIdxr.new(search_base, config.tagsimindexer_cfg),
-                        NodeIdxr.new(search_base,config.nodeindexer_cfg),
+    indexer_pipeline = [NodeIdxr.new(search_base,config.nodeindexer_cfg),
+                        TagSimIdxr.new(search_base, config.tagsimindexer_cfg),
                         AccIdxr.new(search_base, config.accindexer_cfg)]
     return DefaultPipleline(search_base,
                             query_processor_pipeline,
