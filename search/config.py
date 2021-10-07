@@ -29,7 +29,7 @@ class AccIdxingMetric(Enum):
 
 
 class AccIdxrCfg(NamedTuple):
-  acc_fn: Callable[[Scores], float]
+  score_fn: Callable[[Scores], float]
 
 
 class SearchCfg(NamedTuple):
@@ -64,7 +64,7 @@ def acc_sum(scores: Scores) -> float:
 
 
 class DefaultCfg():
-  search_cfg = SearchCfg(1280, 128, 1.0)
+  search_cfg = SearchCfg(1280, 256, 1.25)
   accindexer_cfg = AccIdxrCfg(acc_sum)
-  tagsimindexer_cfg = TagSimIdxrCfg(True,True,2.0)
+  tagsimindexer_cfg = TagSimIdxrCfg(True,True,2)
   nodeindexer_cfg = NodeIdxrCfg(1.0)
