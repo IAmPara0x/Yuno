@@ -55,10 +55,10 @@ class Search(IndexerBase):
   @sort_search
   def __call__(self, query: Query) -> SearchResult:
 
-    q_embedding = compose(flip(np.expand_dims, 0),
+    q_embd = compose(flip(np.expand_dims, 0),
                           self.model)(query.text)
 
-    data_sim = compose(cos_sim(q_embedding),getattr("embedding"))
+    data_sim = compose(cos_sim(q_embd),getattr("embedding"))
 
     def acc_fn(datas,idx):
       data = compose(self.uid_data,int)(idx)
@@ -73,9 +73,9 @@ class Search(IndexerBase):
 
     result_data,scores = reduce(acc_fn,
                                 compose(snd,map(np.squeeze),
-                                  self.knn_search)(q_embedding, self.top_k),
+                                  self.knn_search)(q_embd, self.top_k),
                                 [[],[]])
-    query = Query(query.text, q_embedding)
+    query = Query(query.text, q_embd)
     return SearchResult(query, result_data, np.array(scores,dtype=np.float32).squeeze())
 
 
@@ -85,7 +85,7 @@ class AccIdxr(IndexerBase):
 
   @staticmethod
   def new(search_base: SearchBase, config: AccIdxrCfg) -> "AccIdxr":
-    return AccIdxr(search_base, config.acc_fn)
+    return AccIdxr(search_base, config.score_fn)
 
   @sort_search
   def __call__(self, srch_res: SearchResult) -> SearchResult:
@@ -138,12 +138,13 @@ class TagSimIdxr(IndexerBase):
 
   @curry
   def linear_approx(self, x: np.ndarray, mat: np.ndarray) -> float:
-    y = (mat.T @ mat) @ mat.T @ x
+    y = np.linalg.inv(mat.T @ mat) @ mat.T @ x
     if not self.use_negatives and len(np.where(y < 0)[0]) > 0:
       mat = mat.T[np.where(y > 0)].T
       return self.linear_approx(mat, x)
     else:
       return cos_sim(mat@y, x).item()
+
 
 
 @dataclass(init=True, frozen=True)
@@ -155,9 +156,9 @@ class NodeIdxr(IndexerBase):
     return NodeIdxr(search_base, config.weight)
 
   @sort_search
-  def __call__(self, search_result: SearchResult) -> SearchResult:
+  def __call__(self, srch_res: SearchResult) -> SearchResult:
     uids = [data.anime_uid for data in
-            unique(search_result.datas,key=lambda data: data.anime_uid)]
+            unique(srch_res.datas,key=lambda data: data.anime_uid)]
 
     result_datas: Dict[AnimeUid,List[Data]] = {uid: compose(
                                                       list,
@@ -179,10 +180,11 @@ class NodeIdxr(IndexerBase):
           rank_scores.append(self.node_rank(mat[max_idx],mat))
       return rank_scores
 
-    rank_scores = compose(np.array,reduce)(helper,self.get_datas(search_result),[])
-    new_scores = search_result.scores * rank_scores * self.weight
-    return SearchResult.new(search_result, scores=new_scores)
+    rank_scores = compose(np.array,reduce)(helper,self.get_datas(srch_res),[])
+    new_scores = srch_res.scores * rank_scores * self.weight
+    return SearchResult.new(srch_res, scores=new_scores)
 
-  def node_rank(self,v: np.ndarray, mat: np.ndarray) -> float:
+  @staticmethod
+  def node_rank(v: np.ndarray, mat: np.ndarray) -> float:
     sims = (mat @ v)/ (np.linalg.norm(mat,axis=1)*np.linalg.norm(v))
     return np.average(sims).item()

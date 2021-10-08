@@ -316,10 +316,10 @@ def process_result(norm_f: Optional[Callable[[np.ndarray], np.ndarray]] = None):
 
       scores = Maybe.from_optional(norm_f
                                    ).bind_optional(
-          lambda fn: fn(search_result.scores)
-      ).or_else_call(
-          lambda: search_result.scores
-      )
+                    lambda fn: fn(search_result.scores)
+                ).or_else_call(
+                    lambda: search_result.scores
+                )
 
       return SearchResult.new(search_result, scores=scores)
     return _impl
