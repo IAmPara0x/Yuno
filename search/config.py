@@ -1,5 +1,5 @@
 from enum import Enum, auto
-from typing import NamedTuple, Callable, NewType
+from typing import NamedTuple, Callable, NewType, Optional
 import numpy as np
 from dataclasses import dataclass
 from toolz.curried import reduce  # type: ignore
@@ -49,10 +49,10 @@ class NodeIdxrCfg(NamedTuple):
 
 @dataclass(frozen=True)
 class Config:
-  search_cfg: SearchCfg
-  accindexer_cfg: AccIdxrCfg
-  tagsimindexer_cfg: TagSimIdxrCfg
-  nodeindexer_cfg: NodeIdxrCfg
+  search_cfg: Optional[SearchCfg]
+  accindexer_cfg: Optional[AccIdxrCfg]
+  tagsimindexer_cfg: Optional[TagSimIdxrCfg]
+  nodeindexer_cfg: Optional[NodeIdxrCfg]
 
 
 def inv(x: np.ndarray) -> Scores:

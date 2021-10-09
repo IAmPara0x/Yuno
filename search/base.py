@@ -1,12 +1,25 @@
-from typing import Sequence, List, Callable, Any, Dict, Union, Tuple, NewType, Optional
+from typing import(Sequence,
+                    List,
+                    Callable,
+                    Any,
+                    Dict,
+                    Union,
+                    Tuple,
+                    NewType,
+                    Optional,
+                    TypeVar)
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from returns.maybe import Maybe
+from returns.maybe import Maybe, Nothing
 from functools import wraps, singledispatch, update_wrapper
-from toolz.curried import map, compose, concat, pipe, nth  # type: ignore
+from toolz.curried import map, compose, concat,pipe,curry  # type: ignore
 import numpy as np
 
 
+"""
+Introducing new types that inherit from basic types.
+Used in function dispatching.
+"""
 class GenreUid(int): pass
 class TagUid(int): pass
 class TagCatUid(int): pass
@@ -24,12 +37,24 @@ from .config import Config
 
 @dataclass(init=True, repr=True, eq=True, order=False, frozen=True)
 class Genre:
+  """
+  Genre class that is product of
+    (GenreUid:int, name:str)
+  contains information about a specific genre.
+  """
+
   uid: GenreUid
   name: str = field(compare=False)
 
 
 @dataclass(init=True, repr=True, eq=True, order=False, frozen=True)
 class Tag:
+  """
+  Tag class that is product of
+    (uid: TagUid, name: str, description: str, embedding: np.ndarray)
+  contains information about specific tag that describes property.
+  """
+
   uid: TagUid
   name: str = field(compare=False)
   description: str = field(compare=False)
@@ -39,6 +64,12 @@ class Tag:
 
 @dataclass(init=True, repr=True, eq=True, order=False, frozen=True)
 class TagCat:
+  """
+  Tag class that is product of
+    (uid: TagCatUid, name: str, tag_uids: List[TagUid])
+  contains information about specific tag category and list of all the tags in that category.
+  """
+
   uid: TagCatUid
   name: str = field(compare=False)
   tag_uids: List[TagUid] = field(compare=False)
@@ -46,6 +77,13 @@ class TagCat:
 
 @dataclass(init=True, repr=True, eq=True, order=False, frozen=True)
 class Anime:
+  """
+  Tag class that is product of
+    (uid: AnimeUid, tag_uids: List[TagUid],
+     tag_scores: np.ndarray, data_uids: List[DataUid])
+  contains all information about specific anime.
+  """
+
   uid: AnimeUid
   name: str = field(compare=False)
   genre_uids: List[GenreUid] = field(compare=False, repr=False)
@@ -54,10 +92,21 @@ class Anime:
   data_uids: List[DataUid] = field(compare=False, repr=False)
 
 
-@dataclass(init=True, repr=True, eq=True, order=False, frozen=True)
+@dataclass(init=True, repr=True, eq=False, order=False, frozen=True)
 class Query:
+  """
+  Query class that is product of
+  (text:str, config: Config)
+  contains information about a particular query.
+  """
   text: str
-  embedding: np.ndarray = field(compare=False)
+  config: Optional[Config] = field(repr=False)
+
+
+@dataclass(init=True, repr=True, eq=False, order=False, frozen=True)
+class ProcessedQuery:
+  text: str
+  embedding: np.ndarray = field(repr=False)
 
 
 class DataType(Enum):
@@ -79,21 +128,22 @@ class Data:
   def new(prev_result: "Data", **kwargs) -> "Data":
     remaining_fields = set(prev_result.__dict__.keys()) - set(kwargs.keys())
     kwargs.update({field_name: getattr(prev_result, field_name)
-                  for field_name in remaining_fields})
+                    for field_name in remaining_fields})
     return Data(**kwargs)
 
 
 @dataclass(init=True, repr=False, eq=False, order=False, frozen=True)
 class SearchResult:
-  query: Query
+  query: ProcessedQuery
   datas: List[Data]
   scores: np.ndarray
+  config: Optional[Config]
 
   @staticmethod
   def new(prev_result: "SearchResult", **kwargs) -> "SearchResult":
     remaining_fields = set(prev_result.__dict__.keys()) - set(kwargs.keys())
     kwargs.update({field_name: getattr(prev_result, field_name)
-                  for field_name in remaining_fields})
+                    for field_name in remaining_fields})
     return SearchResult(**kwargs)
 
 
@@ -245,8 +295,8 @@ class ImplEmbeddings:
   def _searchres_embeddings(self, instance: SearchResult) -> np.ndarray:
     return np.vstack([data.embedding for data in instance.datas])
 
-  @get_embeddings.register(Query)
-  def _query_embedding(self, instance: Query) -> np.ndarray:
+  @get_embeddings.register(ProcessedQuery)
+  def _query_embedding(self, instance: ProcessedQuery) -> np.ndarray:
     return instance.embedding
 
   @get_embeddings.register(Data)
@@ -256,12 +306,23 @@ class ImplEmbeddings:
 
 class Impl(ImplTags, ImplTagCats, ImplAnimes, ImplDatas, ImplTexts, ImplEmbeddings): pass
 
+A = TypeVar("A")
 
 @dataclass(frozen=True)
 class IndexerBase(Impl):
   @staticmethod
-  def new(search_base: SearchBase, config):
+  def new(search_base: SearchBase, cfg):
     raise NotImplementedError
+
+  @staticmethod
+  def _get_config(config: Optional[Config], default_cfg: A, name: str) -> A:
+    m_cfg: Maybe[A] = Maybe.from_optional(config).bind_optional(
+                    lambda cfg: getattr(cfg,name))
+    if m_cfg == Nothing:
+      cfg = default_cfg
+    else:
+      cfg = m_cfg.unwrap()
+    return cfg
 
   def model(self, text: str) -> np.ndarray:
     return self.search_base.model(text)
@@ -287,11 +348,15 @@ class SearchPipelineBase(Impl):
   indexer_pipeline: Sequence[Callable[[SearchResult], SearchResult]]
 
   @staticmethod
-  def new(search_base: SearchBase, config):
+  def new(search_base: SearchBase, cfg):
     raise NotImplementedError
 
   def __call__(self, query: Query) -> SearchResult:
-    return pipe(query, *concat([self.query_processor_pipeline, [self.search], self.indexer_pipeline]))
+    return pipe(query,
+                *concat([self.query_processor_pipeline,
+                         [self.search],
+                         self.indexer_pipeline
+                        ]))
 
 
 def sort_search(f):
@@ -302,8 +367,13 @@ def sort_search(f):
 
     datas = [data for _, data in sorted(zip(search_result.scores, search_result.datas),
                                        key=lambda x: x[0], reverse=True)]
-    scores = compose(np.array, sorted)(search_result.scores, reverse=True)
-    return SearchResult.new(search_result, datas=datas, scores=scores)
+    scores = compose(np.array,
+                     sorted)(search_result.scores,
+                             reverse=True)
+
+    return SearchResult.new(search_result,
+                            datas=datas,
+                            scores=scores)
   return _impl
 
 
@@ -314,12 +384,11 @@ def process_result(norm_f: Optional[Callable[[np.ndarray], np.ndarray]] = None):
 
       search_result = f(self, *args)
 
-      scores = Maybe.from_optional(norm_f
-                                   ).bind_optional(
-                    lambda fn: fn(search_result.scores)
-                ).or_else_call(
-                    lambda: search_result.scores
-                )
+      scores = Maybe.from_optional(norm_f).bind_optional(
+                      lambda fn: fn(search_result.scores)
+                    ).or_else_call(
+                      lambda: search_result.scores
+                    )
 
       return SearchResult.new(search_result, scores=scores)
     return _impl
