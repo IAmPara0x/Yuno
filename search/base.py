@@ -1,18 +1,17 @@
-from typing import(Sequence,
+from typing import (Sequence,
                     List,
                     Callable,
                     Any,
                     Dict,
                     Union,
                     Tuple,
-                    NewType,
                     Optional,
                     TypeVar)
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from returns.maybe import Maybe, Nothing
 from functools import wraps, singledispatch, update_wrapper
-from toolz.curried import map, compose, concat,pipe,curry  # type: ignore
+from toolz.curried import compose, concat, pipe  # type: ignore
 import numpy as np
 
 
@@ -29,8 +28,6 @@ class Scores(np.ndarray): pass
 class Embedding(np.ndarray): pass
 class AllData(object): pass
 
-
-from . import utils
 from .model import Model
 from .config import Config
 
@@ -218,9 +215,17 @@ class ImplTags(ImplUidData):
   def _anime_tags(self, instance: Anime) -> List[Tag]:
     return [self.uid_data(tag_uid) for tag_uid in instance.tag_uids]
 
+  @get_tags.register(AnimeUid)
+  def _animeuid_tags(self, instance: AnimeUid) -> List[Tag]:
+    return compose(self.get_tags,self.uid_data)(instance)
+
   @get_tags.register(TagCat)
   def _tagcat_tags(self, instance: TagCat) -> List[Tag]:
     return [self.uid_data(tag_uid) for tag_uid in instance.tag_uids]
+
+  @get_tags.register(TagCatUid)
+  def _tagcatuid_tags(self, instance: TagCatUid) -> List[Tag]:
+    return compose(self.get_tags,self.uid_data)(instance)
 
 
 @dataclass(frozen=True)
@@ -265,6 +270,10 @@ class ImplDatas(ImplUidData):
   def _anime_datas(self, instance: Anime) -> List[Data]:
     return [self.uid_data(data_uid) for data_uid in instance.data_uids]
 
+  @get_datas.register(AnimeUid)
+  def _animeuid_datas(self, instance: AnimeUid) -> List[Data]:
+    return compose(self.get_datas,self.uid_data)(instance)
+
   @get_datas.register(SearchResult)
   def _searchres_datas(self, instance: SearchResult) -> List[Data]:
     return instance.datas
@@ -284,7 +293,7 @@ class ImplTexts:
 
 
 @dataclass(frozen=True)
-class ImplEmbeddings:
+class ImplEmbeddings(ImplUidData):
   search_base: SearchBase
 
   @singledispatchmethod
@@ -302,6 +311,10 @@ class ImplEmbeddings:
   @get_embeddings.register(Data)
   def _data_embedding(self, instance: Data) -> np.ndarray:
     return instance.embedding
+
+  @get_embeddings.register(DataUid)
+  def _datauid_embedding(self, instance: DataUid) -> np.ndarray:
+    return compose(self.get_embeddings,self.uid_data)(instance)
 
 
 class Impl(ImplTags, ImplTagCats, ImplAnimes, ImplDatas, ImplTexts, ImplEmbeddings): pass
@@ -357,7 +370,6 @@ class SearchPipelineBase(Impl):
                          [self.search],
                          self.indexer_pipeline
                         ]))
-
 
 def sort_search(f):
   @wraps(f)

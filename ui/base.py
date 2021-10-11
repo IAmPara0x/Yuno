@@ -1,3 +1,5 @@
+from dataclasses import dataclass, field
+from typing import List
 
 @dataclass(init=True, repr=True, eq=False, order=False, frozen=True)
 class Info:
