@@ -9,6 +9,8 @@ from toolz.curried import (  # type: ignore
                           reduce,
                           nth,
                           groupby,
+                          concat,
+                          itemmap
                       )  # type: ignore
 from dataclasses import dataclass
 from returns.maybe import Maybe, Nothing
