@@ -67,17 +67,13 @@ class Search(IndexerBase):
     return self.base_idxr(query,cfg)
 
   def base_idxr(self, query: Query, cfg: SearchCfg) -> SearchResult:
-    q_embd = compose(flip(np.expand_dims, 0),
-                     self.model)(query.text)
-
-    data_sim = compose(cos_sim(q_embd),
-                       getattrn("embedding"))
+    q_embd = compose(flip(np.expand_dims, 0), self.model)(query.text)
+    data_sim = compose(cos_sim(q_embd), getattrn("embedding"))
 
     def acc_fn(datas,idx):
       data = compose(self.uid_data,int)(idx)
       if data.type == DataType.recs:
-        datas[0].extend(map(lambda a_uid:
-                              Data.new(data, anime_uid=a_uid, type=DataType.short),
+        datas[0].extend(map(lambda a_uid: Data.new(data, anime_uid=a_uid, type=DataType.short),
                               data.anime_uid))
         datas[1].extend([data_sim(data)*cfg.weight]*2)
       else:
@@ -183,6 +179,7 @@ class TagSimIdxr(IndexerBase):
     else:
       return cos_sim(mat @ y, x).item()
 
+#TODO: simplify NodeIdxr
 
 @dataclass(init=True, frozen=True)
 class NodeIdxr(IndexerBase):
@@ -209,14 +206,14 @@ class NodeIdxr(IndexerBase):
 
       elif type == DataType.short:
         embds = compose(torch.from_numpy, np.vstack, list, map)(
-                        compose(getattrn("embedding"), fst), ds)
+            compose(getattrn("embedding"), fst), ds)
 
         if len(ds) == 1:
           sim_mat = torch.cosine_similarity(embds, mat)
           return [mat[torch.argmax(sim_mat)]]
 
         else:
-          sim_mat = torch.cosine_similarity(embds.unsqueeze(1), mat,dim=-1)
+          sim_mat = torch.cosine_similarity(embds.unsqueeze(1), mat, dim=-1)
           return list(mat[torch.argmax(sim_mat, dim=-1)])
 
       else:
@@ -252,5 +249,5 @@ class NodeIdxr(IndexerBase):
 
   @staticmethod
   def node_rank(v: np.ndarray, mat: np.ndarray) -> float:
-    sims = (mat @ v)/ (np.linalg.norm(mat,axis=1)*np.linalg.norm(v))
+    sims = (mat @ v) / (np.linalg.norm(mat, axis=1) * np.linalg.norm(v))
     return np.average(sims).item()

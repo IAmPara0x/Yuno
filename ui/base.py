@@ -1,10 +1,16 @@
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Dict
 
-@dataclass(init=True, repr=True, eq=False, order=False, frozen=True)
-class Info:
-  name: List[str] = field(compare=False,repr=True)
-  img_path: str = field(compare=False,repr=False)
-  synopsis: str = field(compare=False,repr=True)
-  anilist_url: str = field(compare=False,repr=True)
-  mal_url: str = field(compare=False,repr=True)
+from search.base import AnimeUid
+
+@dataclass(init=True, repr=True, frozen=True)
+class AnimeInfo:
+  name: List[str] = field(repr=True)
+  img_path: str = field(repr=False)
+  synopsis: str = field(repr=True)
+  anilist_url: str = field(repr=True)
+  mal_url: str = field(repr=True)
+
+@dataclass(init=True, repr=True, frozen=True)
+class InfoBase:
+  _anime_infos: Dict[AnimeUid,AnimeInfo]
