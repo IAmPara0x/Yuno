@@ -5,11 +5,11 @@ from typing import (Sequence,
                     Dict,
                     Union,
                     Tuple,
-                    Optional,
-                    TypeVar)
+                    Optional
+                    )
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from returns.maybe import Maybe, Nothing
+from returns.maybe import Maybe
 from functools import wraps, singledispatch, update_wrapper
 from toolz.curried import compose, concat, pipe  # type: ignore
 import numpy as np
@@ -125,7 +125,8 @@ class Data:
   def new(prev_result: "Data", **kwargs) -> "Data":
     remaining_fields = set(prev_result.__dict__.keys()) - set(kwargs.keys())
     kwargs.update({field_name: getattr(prev_result, field_name)
-                    for field_name in remaining_fields})
+                  for field_name in remaining_fields
+                   })
     return Data(**kwargs)
 
 
@@ -140,7 +141,8 @@ class SearchResult:
   def new(prev_result: "SearchResult", **kwargs) -> "SearchResult":
     remaining_fields = set(prev_result.__dict__.keys()) - set(kwargs.keys())
     kwargs.update({field_name: getattr(prev_result, field_name)
-                    for field_name in remaining_fields})
+                   for field_name in remaining_fields
+                   })
     return SearchResult(**kwargs)
 
 
@@ -149,7 +151,7 @@ class SearchBase:
   model: Model
   index: Any
   _data_uids: List[DataUid]
-  _search_data: Dict[DataUid,Data]
+  _search_data: Dict[DataUid, Data]
   _animes: Dict[AnimeUid, Anime]
   _tags: Dict[TagUid, Tag]
   _tag_cats: Dict[TagCatUid, TagCat]
@@ -161,6 +163,7 @@ def singledispatchmethod(func):
 
   def wrapper(*args, **kw):
     return dispatcher.dispatch(args[1].__class__)(*args, **kw)
+
   wrapper.register = dispatcher.register
   update_wrapper(wrapper, func)
   return wrapper
@@ -319,23 +322,12 @@ class ImplEmbeddings(ImplUidData):
 
 class Impl(ImplTags, ImplTagCats, ImplAnimes, ImplDatas, ImplTexts, ImplEmbeddings): pass
 
-A = TypeVar("A")
 
 @dataclass(frozen=True)
 class IndexerBase(Impl):
   @staticmethod
   def new(search_base: SearchBase, cfg):
     raise NotImplementedError
-
-  @staticmethod
-  def _get_config(config: Optional[Config], default_cfg: A, name: str) -> A:
-    m_cfg: Maybe[A] = Maybe.from_optional(config).bind_optional(
-                    lambda cfg: getattr(cfg,name))
-    if m_cfg == Nothing:
-      cfg = default_cfg
-    else:
-      cfg = m_cfg.unwrap()
-    return cfg
 
   def model(self, text: str) -> np.ndarray:
     return self.search_base.model(text)
@@ -367,9 +359,10 @@ class SearchPipelineBase(Impl):
   def __call__(self, query: Query) -> SearchResult:
     return pipe(query,
                 *concat([self.query_processor_pipeline,
-                         [self.search],
-                         self.indexer_pipeline
-                        ]))
+                        [self.search],
+                        self.indexer_pipeline
+                         ]))
+
 
 def sort_search(f):
   @wraps(f)
@@ -377,15 +370,15 @@ def sort_search(f):
 
     search_result = f(self, *args)
 
-    datas = [data for _, data in sorted(zip(search_result.scores, search_result.datas),
-                                       key=lambda x: x[0], reverse=True)]
-    scores = compose(np.array,
-                     sorted)(search_result.scores,
-                             reverse=True)
-
-    return SearchResult.new(search_result,
-                            datas=datas,
-                            scores=scores)
+    grp_datas = [(data, score)
+                 for score, data in sorted(zip(search_result.scores, search_result.datas),
+                                           key=lambda x: x[0],
+                                           reverse=True,
+                                           )
+                 ]
+    datas, scores = map(list, zip(*grp_datas))
+    return SearchResult.new(
+        search_result, datas=datas, scores=np.array(scores, dtype=np.float32))
   return _impl
 
 
@@ -396,11 +389,10 @@ def process_result(norm_f: Optional[Callable[[np.ndarray], np.ndarray]] = None):
 
       search_result = f(self, *args)
 
-      scores = Maybe.from_optional(norm_f).bind_optional(
-                      lambda fn: fn(search_result.scores)
-                    ).or_else_call(
-                      lambda: search_result.scores
-                    )
+      scores = (Maybe.from_optional(norm_f)
+                .bind_optional(lambda fn: fn(search_result.scores))
+                .or_else_call(lambda: search_result.scores)
+                )
 
       return SearchResult.new(search_result, scores=scores)
     return _impl
