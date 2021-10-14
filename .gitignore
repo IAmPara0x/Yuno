@@ -2,4 +2,4 @@ __pycache__
 data/
 .mypy_cache/
 test.py
-
+*.ipynb

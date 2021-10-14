@@ -43,8 +43,10 @@ class TagSimIdxrCfg(NamedTuple):
   use_sim: bool
   weight: float
 
-class NodeIdxrCfg(NamedTuple):
+@dataclass
+class NodeIdxrCfg:
   weight: float
+  device: str = "cpu"
 
 
 @dataclass(frozen=True)
@@ -67,4 +69,4 @@ class DefaultCfg():
   search_cfg = SearchCfg(1280, 256, 1.25)
   accindexer_cfg = AccIdxrCfg(acc_sum)
   tagsimindexer_cfg = TagSimIdxrCfg(True,True,2)
-  nodeindexer_cfg = NodeIdxrCfg(1.0)
+  nodeindexer_cfg = NodeIdxrCfg(1.0, "cuda")
