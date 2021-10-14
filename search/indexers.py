@@ -211,7 +211,7 @@ class NodeIdxr(IndexerBase):
                      self.get_datas)(a_uid)
 
       if not len(a_ds):
-        pairs = concat(grp_types.values())
+        pairs = compose(list,concat)(grp_types.values())
         rank_scores = np.ones(len(pairs)) * cfg.weight
       else:
         mat = compose(torch.from_numpy, np.vstack)([a_d.embedding for a_d in a_ds]).to(cfg.device)
