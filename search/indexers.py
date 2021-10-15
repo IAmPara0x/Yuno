@@ -165,7 +165,7 @@ class TagSimIdxr(IndexerBase):
         scores *= 2 * cfg.weight
       else:
         mat = np.vstack([tag.embedding for tag in a_tags]).T
-        scores += approx_f(mat, cfg.use_negatives) * cfg.weight
+        scores += approx_f(mat, cfg.use_negatives, cfg.use_sim) * cfg.weight
 
       pairs = compose(list, zip)(datas, scores)
       return (a_uid, pairs)
@@ -180,13 +180,20 @@ class TagSimIdxr(IndexerBase):
                             scores=np.array(new_scores, dtype=np.float32).squeeze())
 
   @curry
-  def linear_approx(self, x: np.ndarray, mat: np.ndarray, use_negatives: bool) -> float:
+  def linear_approx(self, x: np.ndarray, mat: np.ndarray,
+                    use_negatives: bool, use_sim: bool) -> float:
+
     y = np.linalg.inv(mat.T @ mat) @ mat.T @ x
     if not use_negatives and len(np.where(y < 0)[0]) > 0:
+
       mat = mat.T[np.where(y > 0)].T
-      return self.linear_approx(mat, x)
+      return self.linear_approx(x, mat, use_negatives, use_sim)
     else:
-      return cos_sim(mat @ y, x).item()
+
+      if use_sim:
+        return cos_sim(mat @ y, x).item()
+      else:
+        return np.average(y)
 
 
 @dataclass(init=True, frozen=True)

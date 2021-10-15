@@ -1,5 +1,5 @@
 from enum import Enum, auto
-from typing import NamedTuple, Callable, NewType, Optional
+from typing import NamedTuple, Callable, Optional
 import numpy as np
 from dataclasses import dataclass
 from toolz.curried import reduce  # type: ignore
@@ -43,6 +43,7 @@ class TagSimIdxrCfg(NamedTuple):
   use_sim: bool
   weight: float
 
+
 @dataclass
 class NodeIdxrCfg:
   weight: float
@@ -65,8 +66,8 @@ def acc_sum(scores: Scores) -> float:
   return reduce(operator.add, scores, 0)
 
 
-class DefaultCfg():
+class DefaultCfg:
   search_cfg = SearchCfg(1280, 256, 1.25)
   accindexer_cfg = AccIdxrCfg(acc_sum)
-  tagsimindexer_cfg = TagSimIdxrCfg(True,True,2)
+  tagsimindexer_cfg = TagSimIdxrCfg(True, False, 2)
   nodeindexer_cfg = NodeIdxrCfg(1.0, "cuda")
