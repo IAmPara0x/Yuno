@@ -1,10 +1,61 @@
-from typing import Callable, NewType, Optional
+from typing import (Callable,
+                    Optional,
+                    List,
+                    TypeVar,
+                    Tuple,
+                    Dict)
+
+from toolz.curried import (curry,  # type: ignore
+                           compose,
+                           flip,
+                           nth,
+                           concat,
+                           itemmap,
+                           groupby)
+from returns.maybe import Maybe, Nothing
+
 import numpy as np
-from toolz.curried import curry # type: ignore
+import torch
+
+from .config import Config
+from .base import Data
+
+A = TypeVar("A")
+Result = List[Tuple[Data, float]]
+
+
+getattr = compose(curry, flip)(getattr)
+fst = nth(0)
+snd = nth(1)
 
 
 def sigmoid(x: np.ndarray) -> np.ndarray:
-  return 1/(1+np.exp(-x))
+  return 1 / (1 + np.exp(-x))
+
+
+def get_config(config: Optional[Config], default_cfg: A, name: str) -> A:
+  m_cfg: Maybe[A] = Maybe.from_optional(config).bind_optional(
+      lambda cfg: getattr(name, cfg))
+  if m_cfg == Nothing:
+    cfg = default_cfg
+  else:
+    cfg = m_cfg.unwrap()
+  return cfg
+
+
+def group_data(attr: str, datas: List[Data], scores: np.ndarray) -> Dict[A,Result]:
+  return groupby(compose(getattr(attr), fst), zip(datas, scores))
+
+
+def ungroup_data(fn, grp_datas):
+  datas, scores = map(list,
+                      zip(*concat(itemmap(fn, grp_datas).values(),))
+                      )
+  return datas, scores
+
+
+def pair_sim(mat1, mat2):
+    return torch.cosine_similarity(mat1.unsqueeze(1), mat2, dim=-1)
 
 
 def rescale_scores(t_min: float = 1, t_max: float = 2, inverse: bool = False) -> Callable[[np.ndarray], np.ndarray]:
@@ -22,4 +73,4 @@ def rescale_scores(t_min: float = 1, t_max: float = 2, inverse: bool = False) ->
 
 @curry
 def cos_sim(v1: np.ndarray, v2: np.ndarray) -> np.ndarray:
-  return np.dot(v1, v2)/(np.linalg.norm(v1)*np.linalg.norm(v2))
+  return np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))

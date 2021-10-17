@@ -19,6 +19,7 @@ import numpy as np
 Introducing new types that inherit from basic types.
 Used in function dispatching.
 """
+
 class GenreUid(int): pass
 class TagUid(int): pass
 class TagCatUid(int): pass
@@ -35,9 +36,12 @@ from .config import Config
 @dataclass(init=True, repr=True, eq=True, order=False, frozen=True)
 class Genre:
   """
-  Genre class that is product of
-    (GenreUid:int, name:str)
-  contains information about a specific genre.
+  Genre class that contains information about a specific genre.
+
+  Parameters
+  ----------
+  uid: GenreUid
+  name: str
   """
 
   uid: GenreUid
@@ -47,9 +51,15 @@ class Genre:
 @dataclass(init=True, repr=True, eq=True, order=False, frozen=True)
 class Tag:
   """
-  Tag class that is product of
-    (uid: TagUid, name: str, description: str, embedding: np.ndarray)
-  contains information about specific tag that describes property.
+  Tag class that contains information about a specific tag.
+
+  Parameters
+  ----------
+  uid: TagUid
+  name: str
+  description: str
+  cat_uid: TagCatUid
+  embedding: np.ndarray
   """
 
   uid: TagUid
@@ -62,9 +72,13 @@ class Tag:
 @dataclass(init=True, repr=True, eq=True, order=False, frozen=True)
 class TagCat:
   """
-  Tag class that is product of
-    (uid: TagCatUid, name: str, tag_uids: List[TagUid])
-  contains information about specific tag category and list of all the tags in that category.
+  TagCat class that contains information about specific tag category.
+
+  Parameters
+  ----------
+  uid: TagCatUid
+  name: str
+  tag_uids: List[TagUid]
   """
 
   uid: TagCatUid
@@ -75,10 +89,16 @@ class TagCat:
 @dataclass(init=True, repr=True, eq=True, order=False, frozen=True)
 class Anime:
   """
-  Tag class that is product of
-    (uid: AnimeUid, tag_uids: List[TagUid],
-     tag_scores: np.ndarray, data_uids: List[DataUid])
-  contains all information about specific anime.
+  Anime class that contains information about specific anime.
+
+  Parameters
+  ----------
+  uid: AnimeUid
+  name: str
+  genre_uids: List[GenreUid]
+  tag_uids: List[TagUid]
+  tag_scores: np.ndarray
+  data_uids: List[DataUid]
   """
 
   uid: AnimeUid
@@ -92,16 +112,28 @@ class Anime:
 @dataclass(init=True, repr=True, eq=False, order=False, frozen=True)
 class Query:
   """
-  Query class that is product of
-  (text:str, config: Config)
-  contains information about a particular query.
+  Query class that contains information about the query provided
+  along with config of different indexers.
+
+  Parameters
+  ----------
+  text: str
+  config: Optional[Config]
   """
   text: str
-  config: Optional[Config] = field(repr=False)
+  config: Optional[Config] = field(repr=False, default=None)
 
 
 @dataclass(init=True, repr=True, eq=False, order=False, frozen=True)
 class ProcessedQuery:
+  """
+  ProcessedQuery class that contains processed information given from Query.
+
+  Parameters
+  ----------
+  text: str
+  embedding: np.ndarray
+  """
   text: str
   embedding: np.ndarray = field(repr=False)
 

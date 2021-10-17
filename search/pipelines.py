@@ -1,7 +1,6 @@
-from typing import List
 from dataclasses import dataclass
 from .base import SearchPipelineBase, SearchBase, Query
-from .indexers import Search, TagSimIdxr, AccIdxr, NodeIdxr
+from .indexers import Search, TagSimIdxr, AccIdxr, NodeIdxr, ContextIdxr
 from .config import DefaultCfg
 
 
@@ -15,9 +14,12 @@ class DefaultPipleline(SearchPipelineBase):
   def new(search_base: SearchBase, config: DefaultCfg) -> "DefaultPipleline":
     query_processor_pipeline = [id_query]
     knn_search = Search.new(search_base, config.search_cfg)
-    indexer_pipeline = [NodeIdxr.new(search_base,config.nodeindexer_cfg),
-                        TagSimIdxr.new(search_base, config.tagsimindexer_cfg),
-                        AccIdxr.new(search_base, config.accindexer_cfg)]
+    indexer_pipeline = [
+        NodeIdxr.new(search_base, config.nodeindexer_cfg),
+        TagSimIdxr.new(search_base, config.tagsimindexer_cfg),
+        AccIdxr.new(search_base, config.accindexer_cfg),
+        ContextIdxr.new(search_base, config.contextidxr_cfg),
+    ]
     return DefaultPipleline(search_base,
                             query_processor_pipeline,
                             knn_search,
