@@ -11,7 +11,8 @@ from toolz.curried import (curry,  # type: ignore
                            nth,
                            concat,
                            itemmap,
-                           groupby)
+                           groupby,
+                           filter)
 from returns.maybe import Maybe, Nothing
 
 import numpy as np

@@ -321,6 +321,6 @@ class ContextIdxr(IndexerBase):
 
     r = l2_approx(q_mat, mat, mat_t)
     max_idx = torch.argmax(torch.sum(r, 1))
-    cntxt_scr = torch.cosine_similarity((mat[max_idx] @ r[max_idx]), q)
+    cntxt_scr = torch.cosine_similarity(torch.movedim(mat[max_idx] @ r[max_idx],1,0), q)
 
     return cntxt_scr, max_idx
