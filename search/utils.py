@@ -22,6 +22,7 @@ from .base import Data
 
 A = TypeVar("A")
 Result = List[Tuple[Data, float]]
+Tensor = torch.Tensor
 
 
 getattr = compose(curry, flip)(getattr)
@@ -43,6 +44,10 @@ def get_config(config: Optional[Config], default_cfg: A, name: str) -> A:
   return cfg
 
 
+def datas_filter(pred, datas):
+  return compose(list, filter(pred))(datas)
+
+
 def group_data(attr: str, datas: List[Data], scores: np.ndarray) -> Dict[A,Result]:
   return groupby(compose(getattr(attr), fst), zip(datas, scores))
 
@@ -56,6 +61,14 @@ def ungroup_data(fn, grp_datas):
 
 def pair_sim(mat1, mat2):
     return torch.cosine_similarity(mat1.unsqueeze(1), mat2, dim=-1)
+
+
+def from_vstack(mat):
+    return compose(torch.from_numpy, np.vstack)(mat)
+
+
+def l2_approx(x: Tensor, mat: Tensor, mat_t: Tensor) -> Tensor:
+  return torch.inverse(mat_t @ mat) @ mat_t @ x
 
 
 def rescale_scores(t_min: float = 1, t_max: float = 2, inverse: bool = False) -> Callable[[np.ndarray], np.ndarray]:
