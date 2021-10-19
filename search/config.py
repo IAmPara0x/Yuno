@@ -32,9 +32,17 @@ class AccIdxingMetric(Enum):
 @dataclass(frozen=True)
 class AccIdxrCfg:
   """
-   config for AccIdxr
+   AccIdxrCfg config class for AccIdxr.
+
+   ...
+
+   Parameters
+   ----------
+   score_fn : Callable[[ndarray], float]
+
+
   """
-  score_fn: Callable[[Scores], float]
+  score_fn: Callable[[np.ndarray], float]
 
 
 @dataclass(frozen=True)
@@ -74,11 +82,7 @@ class Config:
   contextidxr_cfg: Optional[ContextIdxrCfg]
 
 
-def inv(x: np.ndarray) -> Scores:
-  return Scores(1/x)
-
-
-def acc_sum(scores: Scores) -> float:
+def acc_sum(scores: np.ndarray) -> float:
   return reduce(operator.add, scores, 0)
 
 
@@ -88,4 +92,4 @@ class DefaultCfg:
   accindexer_cfg = AccIdxrCfg(acc_sum)
   tagsimindexer_cfg = TagSimIdxrCfg(True, False, 2)
   nodeindexer_cfg = NodeIdxrCfg(1.0, "cuda")
-  contextidxr_cfg = ContextIdxrCfg(0.65,0.7,50,"cuda")
+  contextidxr_cfg = ContextIdxrCfg(0.65, 0.7, 50, "cuda")

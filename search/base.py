@@ -147,7 +147,7 @@ class DataType(Enum):
 @dataclass(init=True, repr=True, eq=True, order=False, frozen=True)
 class Data:
   data_uid: DataUid = field(repr=False)
-  anime_uid: Union[AnimeUid,List[AnimeUid]]
+  anime_uid: Union[AnimeUid, List[AnimeUid]]
   embedding: Embedding = field(repr=False, compare=False)
   text: str = field(compare=False)
   rating: int = field(compare=False)
@@ -156,9 +156,10 @@ class Data:
   @staticmethod
   def new(prev_result: "Data", **kwargs) -> "Data":
     remaining_fields = set(prev_result.__dict__.keys()) - set(kwargs.keys())
-    kwargs.update({field_name: getattr(prev_result, field_name)
-                  for field_name in remaining_fields
-                   })
+    kwargs.update({
+        field_name: getattr(prev_result, field_name)
+        for field_name in remaining_fields
+    })
     return Data(**kwargs)
 
 
@@ -172,9 +173,10 @@ class SearchResult:
   @staticmethod
   def new(prev_result: "SearchResult", **kwargs) -> "SearchResult":
     remaining_fields = set(prev_result.__dict__.keys()) - set(kwargs.keys())
-    kwargs.update({field_name: getattr(prev_result, field_name)
-                   for field_name in remaining_fields
-                   })
+    kwargs.update({
+        field_name: getattr(prev_result, field_name)
+        for field_name in remaining_fields
+    })
     return SearchResult(**kwargs)
 
 
@@ -252,7 +254,7 @@ class ImplTags(ImplUidData):
 
   @get_tags.register(AnimeUid)
   def _animeuid_tags(self, instance: AnimeUid) -> List[Tag]:
-    return compose(self.get_tags,self.uid_data)(instance)
+    return compose(self.get_tags, self.uid_data)(instance)
 
   @get_tags.register(TagCat)
   def _tagcat_tags(self, instance: TagCat) -> List[Tag]:
@@ -260,7 +262,7 @@ class ImplTags(ImplUidData):
 
   @get_tags.register(TagCatUid)
   def _tagcatuid_tags(self, instance: TagCatUid) -> List[Tag]:
-    return compose(self.get_tags,self.uid_data)(instance)
+    return compose(self.get_tags, self.uid_data)(instance)
 
 
 @dataclass(frozen=True)
@@ -307,7 +309,7 @@ class ImplDatas(ImplUidData):
 
   @get_datas.register(AnimeUid)
   def _animeuid_datas(self, instance: AnimeUid) -> List[Data]:
-    return compose(self.get_datas,self.uid_data)(instance)
+    return compose(self.get_datas, self.uid_data)(instance)
 
   @get_datas.register(SearchResult)
   def _searchres_datas(self, instance: SearchResult) -> List[Data]:
@@ -349,7 +351,7 @@ class ImplEmbeddings(ImplUidData):
 
   @get_embeddings.register(DataUid)
   def _datauid_embedding(self, instance: DataUid) -> np.ndarray:
-    return compose(self.get_embeddings,self.uid_data)(instance)
+    return compose(self.get_embeddings, self.uid_data)(instance)
 
 
 class Impl(ImplTags, ImplTagCats, ImplAnimes, ImplDatas, ImplTexts, ImplEmbeddings): pass
@@ -364,7 +366,8 @@ class IndexerBase(Impl):
   def model(self, text: str) -> np.ndarray:
     return self.search_base.model(text)
 
-  def knn_search(self, q_embedding: np.ndarray, top_k: int) -> Tuple[np.ndarray, np.ndarray]:
+  def knn_search(self, q_embedding: np.ndarray,
+                 top_k: int) -> Tuple[np.ndarray, np.ndarray]:
     return self.search_base.index.search(q_embedding, top_k)
 
   def __call__(self, search_result) -> SearchResult:
@@ -389,11 +392,11 @@ class SearchPipelineBase(Impl):
     raise NotImplementedError
 
   def __call__(self, query: Query) -> SearchResult:
-    return pipe(query,
-                *concat([self.query_processor_pipeline,
-                        [self.search],
-                        self.indexer_pipeline
-                         ]))
+    return pipe(
+        query,
+        *concat([
+            self.query_processor_pipeline, [self.search], self.indexer_pipeline
+        ]))
 
 
 def sort_search(f):
@@ -402,30 +405,32 @@ def sort_search(f):
 
     search_result = f(self, *args)
 
-    grp_datas = [(data, score)
-                 for score, data in sorted(zip(search_result.scores, search_result.datas),
-                                           key=lambda x: x[0],
-                                           reverse=True,
-                                           )
-                 ]
+    grp_datas = [(data, score) for score, data in sorted(
+        zip(search_result.scores, search_result.datas),
+        key=lambda x: x[0],
+        reverse=True,
+    )]
     datas, scores = map(list, zip(*grp_datas))
-    return SearchResult.new(
-        search_result, datas=datas, scores=np.array(scores, dtype=np.float32))
+    return SearchResult.new(search_result,
+                            datas=datas,
+                            scores=np.array(scores, dtype=np.float32))
+
   return _impl
 
 
-def process_result(norm_f: Optional[Callable[[np.ndarray], np.ndarray]] = None):
+def process_result(norm_f: Optional[Callable[[np.ndarray],
+                                             np.ndarray]] = None):
   def wrapper(f):
     @wraps(f)
     def _impl(self, *args) -> SearchResult:
 
       search_result = f(self, *args)
 
-      scores = (Maybe.from_optional(norm_f)
-                .bind_optional(lambda fn: fn(search_result.scores))
-                .or_else_call(lambda: search_result.scores)
-                )
+      scores = (Maybe.from_optional(norm_f).bind_optional(lambda fn: fn(
+          search_result.scores)).or_else_call(lambda: search_result.scores))
 
       return SearchResult.new(search_result, scores=scores)
+
     return _impl
+
   return wrapper

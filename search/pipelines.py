@@ -20,7 +20,5 @@ class DefaultPipleline(SearchPipelineBase):
         AccIdxr.new(search_base, config.accindexer_cfg),
         ContextIdxr.new(search_base, config.contextidxr_cfg),
     ]
-    return DefaultPipleline(search_base,
-                            query_processor_pipeline,
-                            knn_search,
+    return DefaultPipleline(search_base, query_processor_pipeline, knn_search,
                             indexer_pipeline)
