@@ -547,7 +547,7 @@ class NodeIdxr(IndexerBase):
                             scores=np.array(new_scores).squeeze())
 
   @staticmethod
-  def node_rank(v: Tensor, mat: Tensor) -> float:
+  def node_rank(v: Tensor, mat: Tensor) -> Tensor:
     """
       calculates the authority of the node in the graph ie
       mean of cosine similarity between all the vectors.
@@ -555,19 +555,19 @@ class NodeIdxr(IndexerBase):
       Parameters
       ----------
         v: Tensor
-          vector whose authority score is need to be calculated.
+          vectors whose authority score is need to be calculated.
         mat: Tensor
           vectors that are related to target vector v.
 
       Returns
       ----------
-        float
-          authority score of the target vector v.
+        Tensor
+          authority scores of the target vectors v.
     """
 
     assert len(v.shape) == 2, "The dim of v must be 2"
     sims = pair_sim(v, mat)
-    return torch.mean(sims, dim=1).item()
+    return torch.mean(sims, dim=1)
 
 
 @dataclass(init=True, frozen=True)
