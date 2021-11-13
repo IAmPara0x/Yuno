@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from typing import List, Dict
+import numpy as np
 
 from yuno.search.base import AnimeUid
 
