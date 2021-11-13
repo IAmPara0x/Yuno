@@ -1,5 +1,5 @@
 from typing import (Callable, Optional, List, TypeVar, Tuple, Dict)
-from toolz.curried import (  # type: ignore
+from cytoolz.curried import (  # type: ignore
     curry,
     compose,
     flip,

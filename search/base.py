@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from returns.maybe import Maybe
 from functools import wraps, singledispatch, update_wrapper
-from toolz.curried import compose, concat, pipe  # type: ignore
+from cytoolz.curried import compose, concat, pipe  # type: ignore
 import numpy as np
 
 

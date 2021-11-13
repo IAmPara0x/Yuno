@@ -5,7 +5,7 @@ from typing import (
   Optional,
   Tuple,
 )
-from toolz.curried import (  # type: ignore
+from cytoolz.curried import (  # type: ignore
   compose,
   flip,
   map,

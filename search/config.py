@@ -2,7 +2,7 @@ from enum import Enum, auto
 from typing import NamedTuple, Callable, Optional
 import numpy as np
 from dataclasses import dataclass
-from toolz.curried import reduce  # type: ignore
+from cytoolz.curried import reduce  # type: ignore
 import operator
 
 from .base import Scores
