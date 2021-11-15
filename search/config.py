@@ -2,10 +2,8 @@ from enum import Enum, auto
 from typing import NamedTuple, Callable, Optional
 import numpy as np
 from dataclasses import dataclass
-from toolz.curried import reduce  # type: ignore
+from cytoolz.curried import reduce  # type: ignore
 import operator
-
-from .base import Scores
 
 
 class TagIdxingMethod(Enum):
@@ -39,8 +37,6 @@ class AccIdxrCfg:
    Parameters
    ----------
    score_fn : Callable[[ndarray], float]
-
-
   """
   score_fn: Callable[[np.ndarray], float]
 
@@ -67,29 +63,41 @@ class NodeIdxrCfg:
 
 @dataclass(frozen=True)
 class ContextIdxrCfg:
-  sim_thres: float
-  cutoff_sim: float
-  topk: int
+  stride: int
+  sim_threshold: float
   device: str = "cpu"
 
 
 @dataclass(frozen=True)
+class TopkIdxrCfg:
+  topk: int
+  tag_thres: float
+
+
+@dataclass(init=True,frozen=True)
 class Config:
   search_cfg: Optional[SearchCfg]
   accindexer_cfg: Optional[AccIdxrCfg]
   tagsimindexer_cfg: Optional[TagSimIdxrCfg]
   nodeindexer_cfg: Optional[NodeIdxrCfg]
-  contextidxr_cfg: Optional[ContextIdxrCfg]
+  topkindexer_cfg: Optional[TopkIdxrCfg]
+  # contextidxr_cfg: Optional[ContextIdxrCfg]
 
 
 def acc_sum(scores: np.ndarray) -> float:
   return reduce(operator.add, scores, 0)
 
 
-@dataclass(frozen=True)
-class DefaultCfg:
-  search_cfg = SearchCfg(1280, 256, 1.25)
-  accindexer_cfg = AccIdxrCfg(acc_sum)
-  tagsimindexer_cfg = TagSimIdxrCfg(True, False, 2)
-  nodeindexer_cfg = NodeIdxrCfg(1.0, "cuda")
-  contextidxr_cfg = ContextIdxrCfg(0.65, 0.7, 50, "cuda")
+search_cfg = SearchCfg(1280, 256, 1.25)
+accindexer_cfg = AccIdxrCfg(acc_sum)
+tagsimindexer_cfg = TagSimIdxrCfg(True, False, 2)
+nodeindexer_cfg = NodeIdxrCfg(1.0, "cuda")
+topkindexer_cfg = TopkIdxrCfg(5,0.65)
+# contextidxr_cfg = ContextIdxrCfg(0.65, 0.7,"cuda")
+
+default_cfg = Config(search_cfg,
+                     accindexer_cfg,
+                     tagsimindexer_cfg,
+                     nodeindexer_cfg,
+                     topkindexer_cfg
+                     )

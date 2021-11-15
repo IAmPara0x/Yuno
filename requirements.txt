@@ -1,4 +1,4 @@
-faiss-cpu==1.7.1
-transformers==4.6.1
+cytoolz==0.11.2
 returns==0.17.0
-toolz
+transformers==4.6.1
+faiss-cpu==1.7.1

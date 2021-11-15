@@ -1,5 +1,5 @@
 import random
-from toolz.curried import reduce
+from cytoolz.curried import reduce
 from typing import List
 from abc import ABCMeta, abstractmethod
 from transformers import RobertaTokenizerFast, RobertaForMaskedLM, AdamW

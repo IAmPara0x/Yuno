@@ -68,7 +68,7 @@ def main():
     pickle.dump(tsne_data,f)
 
   for perplexity in PERPLEXITIES:
-    model = reducedim(out_dim=dims,perplexity=perplexity,
+    model = Reducedim(out_dim=dims,perplexity=perplexity,
               steps=steps,jobs=cpus,use_pca=use_pca,
               pca_out_dims=pca_out_dims)
     tsne_results[f"tsne_result_{perplexity}"] = model.fit_transform(embeddings)

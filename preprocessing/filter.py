@@ -1,6 +1,6 @@
 import re
 from typing import List, NamedTuple, Callable
-from toolz.curried import reduce,compose
+from cytoolz.curried import reduce,compose
 from enum import Enum
 import inspect
 

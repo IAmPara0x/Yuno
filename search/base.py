@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from returns.maybe import Maybe
 from functools import wraps, singledispatch, update_wrapper
-from toolz.curried import compose, concat, pipe  # type: ignore
+from cytoolz.curried import compose, concat, pipe  # type: ignore
 import numpy as np
 
 
@@ -102,11 +102,11 @@ class Anime:
   """
 
   uid: AnimeUid
-  name: str = field(compare=False)
+  name: str                  = field(compare=False)
   genre_uids: List[GenreUid] = field(compare=False, repr=False)
-  tag_uids: List[TagUid] = field(compare=False, repr=False)
-  tag_scores: np.ndarray = field(compare=False, repr=False)
-  data_uids: List[DataUid] = field(compare=False, repr=False)
+  tag_uids: List[TagUid]     = field(compare=False, repr=False)
+  tag_scores: np.ndarray     = field(compare=False, repr=False)
+  data_uids: List[DataUid]   = field(compare=False, repr=False)
 
 
 @dataclass(init=True, repr=True, eq=False, order=False, frozen=True)
@@ -142,16 +142,17 @@ class DataType(Enum):
   long = auto()
   short = auto()
   recs = auto()
+  final = auto()
 
 
 @dataclass(init=True, repr=True, eq=True, order=False, frozen=True)
 class Data:
-  data_uid: DataUid = field(repr=False)
+  data_uid: DataUid          = field(repr=False)
   anime_uid: Union[AnimeUid, List[AnimeUid]]
-  embedding: Embedding = field(repr=False, compare=False)
-  text: str = field(compare=False)
-  rating: int = field(compare=False)
-  type: DataType = field(compare=False, repr=False)
+  embedding: Embedding       = field(repr=False, compare=False)
+  text: Union[List[str],str] = field(compare=False)
+  rating: int                = field(compare=False)
+  type: DataType             = field(compare=False, repr=False)
 
   @staticmethod
   def new(prev_result: "Data", **kwargs) -> "Data":
@@ -325,7 +326,7 @@ class ImplTexts:
     raise NotImplementedError
 
   @get_texts.register(SearchResult)
-  def _searchres_texts(self, instance: SearchResult) -> List[str]:
+  def _searchres_texts(self, instance: SearchResult) -> List[Union[List[str], str]]:
     return [data.text for data in instance.datas]
 
 

@@ -1,13 +1,20 @@
-from typing import (Callable, Optional, List, TypeVar, Tuple, Dict)
-from toolz.curried import (  # type: ignore
-    curry,
-    compose,
-    flip,
-    nth,
-    concat,
-    itemmap,
-    groupby,
-    filter)
+from typing import (Callable,
+  Optional,
+  List,
+  TypeVar,
+  Tuple,
+  Dict,
+  Union
+  )
+from cytoolz.curried import (  # type: ignore
+  curry,
+  compose,
+  flip,
+  nth,
+  concat,
+  itemmap,
+  groupby,
+  filter)
 from returns.maybe import Maybe, Nothing
 
 import numpy as np
@@ -39,7 +46,7 @@ def get_config(config: Optional[Config], default_cfg: A, name: str) -> A:
   return cfg
 
 
-def datas_filter(pred, datas):
+def datas_filter(pred: Callable[[Data],bool], datas: List[Data]) -> List[Data]:
   return compose(list, filter(pred))(datas)
 
 
@@ -53,11 +60,11 @@ def ungroup_data(fn, grp_datas):
   return datas, scores
 
 
-def pair_sim(mat1, mat2):
+def pair_sim(mat1: Tensor, mat2: Tensor) -> Tensor:
   return torch.cosine_similarity(mat1.unsqueeze(1), mat2, dim=-1)
 
 
-def from_vstack(mat):
+def from_vstack(mat: Union[np.ndarray,List[np.ndarray]]) -> Tensor:
   return compose(torch.from_numpy, np.vstack)(mat)
 
 
@@ -85,3 +92,12 @@ def rescale_scores(
 @curry
 def cos_sim(v1: np.ndarray, v2: np.ndarray) -> np.ndarray:
   return np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
+
+
+def top_subset_sum(arr:Tensor, t:float) -> List[int]:
+  _ ,idxs = torch.sort(arr, descending=True)
+  for i in range(1,len(idxs)+1):
+    if torch.sum(arr[idxs[:i]]) >= t:
+      return idxs[:i].tolist()
+  return idxs.tolist()
+

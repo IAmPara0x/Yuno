@@ -5,7 +5,7 @@ from typing import (
   Optional,
   Tuple,
 )
-from toolz.curried import (  # type: ignore
+from cytoolz.curried import (  # type: ignore
   compose,
   flip,
   map,
@@ -17,6 +17,8 @@ from toolz.curried import (  # type: ignore
   valmap,
 )
 from dataclasses import dataclass
+from operator import itemgetter
+import gc
 import numpy as np
 import torch
 
@@ -37,7 +39,7 @@ from .config import (
   AccIdxrCfg,
   NodeIdxrCfg,
   TagSimIdxrCfg,
-  ContextIdxrCfg,
+  TopkIdxrCfg
 )
 from .utils import (
   Result,
@@ -84,6 +86,7 @@ class Search(IndexerBase):
         with query.
 
   """
+
   cfg: SearchCfg
 
   @staticmethod
@@ -122,6 +125,7 @@ class Search(IndexerBase):
     """
 
     cfg = get_config(query.config, self.cfg, "search_cfg")
+    gc.collect()
     return self.base_idxr(query, cfg)
 
   def base_idxr(self, query: Query, cfg: SearchCfg) -> SearchResult:
@@ -234,6 +238,7 @@ class AccIdxr(IndexerBase):
     """
 
     cfg = get_config(search_result.config, self.cfg, "accindexer_cfg")
+    gc.collect()
     return self.acc_idxr(search_result, cfg)
 
   def acc_idxr(self, search_result: SearchResult,
@@ -336,9 +341,11 @@ class TagSimIdxr(IndexerBase):
     """
 
     cfg = get_config(search_result.config, self.cfg, "tagsimindexer_cfg")
+    gc.collect()
     return self.tagsim_idxr(search_result, cfg)
 
-  def tagsim_idxr(self, search_result: SearchResult, cfg: TagSimIdxrCfg) -> SearchResult:
+  def tagsim_idxr(self, search_result: SearchResult,
+                  cfg: TagSimIdxrCfg) -> SearchResult:
     """
       scores the data in search_result according to the score returned
       by method linear_approx times weight ie. provided in TagSimIdxrCfg.
@@ -368,7 +375,8 @@ class TagSimIdxr(IndexerBase):
 
     approx_f = self.linear_approx(
         torch.from_numpy(search_result.query.embedding))
-    grp_datas: Dict[AnimeUid, Result] = group_data("anime_uid", search_result.datas,
+    grp_datas: Dict[AnimeUid,
+                    Result] = group_data("anime_uid", search_result.datas,
                                          search_result.scores)
     result_data, new_scores = ungroup_data(approx_map, grp_datas)
 
@@ -395,7 +403,7 @@ class TagSimIdxr(IndexerBase):
           vectors that is used to approximate the target vector x.
 
         use_negatives: bool
-           If False solution in found under positive contraint
+           If False solution in found under positive constraint
            else no contraint is used.
 
         use_sim: bool
@@ -486,6 +494,7 @@ class NodeIdxr(IndexerBase):
     """
 
     cfg = get_config(search_result.config, self.cfg, "nodeindexer_cfg")
+    gc.collect()
     return self.node_idxr(search_result, cfg)
 
   def node_idxr(self, search_result: SearchResult, cfg: NodeIdxrCfg) -> SearchResult:
@@ -516,13 +525,15 @@ class NodeIdxr(IndexerBase):
         embds = []
 
         if DataType.long in grp_types:
-          _embds = from_vstack([d.embedding for d, _ in grp_types[DataType.long]
-                               ]).to(cfg.device)
+          _embds = from_vstack([
+              d.embedding for d, _ in grp_types[DataType.long]
+          ]).to(cfg.device)
           embds.extend(_embds)
 
         if DataType.short in grp_types:
-          _embds = from_vstack([d.embedding for d, _ in grp_types[DataType.short]
-                               ]).to(cfg.device)
+          _embds = from_vstack([
+              d.embedding for d, _ in grp_types[DataType.short]
+          ]).to(cfg.device)
           max_idxs = torch.argmax(pair_sim(_embds, mat), dim=-1)
           embds.extend(mat[max_idxs])
 
@@ -533,13 +544,16 @@ class NodeIdxr(IndexerBase):
             v for k, v in sorted(grp_types.items(), key=lambda t: t[0].value)
         ])
 
-      return (a_uid,
-              [(pair[0], pair[1] * rank_score)
-              for pair, rank_score in zip(pairs, rank_scores)],)
+      return (
+          a_uid,
+          [(pair[0], pair[1] * rank_score)
+           for pair, rank_score in zip(pairs, rank_scores)],
+      )
 
     grp_datas = valmap(
         groupby(compose(getattr("type"), fst)),
-        group_data("anime_uid", search_result.datas, search_result.scores),)
+        group_data("anime_uid", search_result.datas, search_result.scores),
+    )
     datas, new_scores = ungroup_data(noderank_map, grp_datas)
 
     return SearchResult.new(search_result,
@@ -571,191 +585,53 @@ class NodeIdxr(IndexerBase):
 
 
 @dataclass(init=True, frozen=True)
-class ContextIdxr(IndexerBase):
-  """
-    ContextIdxr class inherits from IndexerBase.
-    uses brute force search with some pruning to search
-    combinations of different sentences that best
-    linearly approximate query.
-
-    ...
-
-    Attributes:
-    ----------
-      cfg: ContextIdxrCfg
-        contains all the default parameters that is need for __call__.
-
-    Methods:
-    ----------
-      new(search_base: SearchBase, cfg: ContextIdxrCfg) -> ContextIdxr
-        returns new instance of ContextIdxr class.
-
-      __call__(search_result: SearchResult) -> SearchResult
-        calls context_idxr with given search_result and default cfg or given cfg.
-
-      context_idxr(search_result: SearchResult, cfg: ContextIdxrCfg) -> SearchResult
-        scores the data according to the score returned by method context_score.
-
-      context_score(q: Tensor, mat: Tensor, combinations: int,
-          cutoff_sim: float, device: str) -> Tuple[float, List[int]]
-
-        uses brute force search with pruning that searches for best combination of
-        vectors that best linearly approximate the q vector.
-  """
-
-  cfg: ContextIdxrCfg
+class TopkIdxr(IndexerBase):
+  cfg: TopkIdxrCfg
 
   @staticmethod
-  def new(search_base: SearchBase, cfg: ContextIdxrCfg) -> "ContextIdxr":
-    """
-      creates new instance of ContextIdxr class.
-
-      Parameters
-      ----------
-        search_base: SearchBase
-        cfg: ContextIdxrCfg
-
-      Returns
-      ----------
-        ContextIdxr
-    """
-
-    return ContextIdxr(search_base, cfg)
+  def new(search_base: SearchBase, cfg: TopkIdxrCfg) -> TopkIdxr:
+    return TopkIdxr(search_base,cfg)
 
   @sort_search
-  def __call__(self, search_result: SearchResult) -> SearchResult:
-    """
-      calls method context_idxr with cfg argument if provided in search_result or else
-      uses default cfg attribute. The datas returned by context_idxr is
-      then sorted according to according to their scores.
+  def __call__(self,search_result: SearchResult) -> SearchResult:
+    cfg = get_config(search_result.config, self.cfg, "topkindexer_cfg")
+    gc.collect()
+    return self.topk_idxr(search_result, cfg)
 
-      Parameters
-      ----------
-        search_result: SearchResult
+  def topk_idxr(self,search_result: SearchResult, cfg: TopkIdxrCfg) -> SearchResult:
 
-      Returns
-      ----------
-        SearchResult
-    """
+    def topk_map(data: Data) -> Tuple[Data,float]:
+      datas = datas_filter(lambda data: data.type == DataType.recs,
+                           self.get_datas(data.anime_uid))
 
-    cfg = get_config(search_result.config, self.cfg, "nodeindexer_cfg")
-    return self.context_idxr(search_result, cfg)
+      texts = []
+      if datas:
+        sims = torch.cosine_similarity(q,from_vstack([data.embedding for data in datas]))
+        topk_idxs = torch.topk(sims,k=cfg.topk).indices
+        texts = [datas[idx].text for idx in topk_idxs]
 
-  def context_idxr(self, search_result: SearchResult, cfg: ContextIdxrCfg) -> SearchResult:
-    """
-      scores the data in search_result according to the score returned
-      by method context_score which is then linearly scaled between min=0.5,max=3.
-
-      Parameters
-      ----------
-        search_result: SearchResult
-        cfg: ContextIdxrCfg
-
-      Returns
-      ----------
-        SearchResult
-    """
-
-    def contextscore_acc(acc_data, data):
-      a_uid = data.anime_uid
-      a_datas = datas_filter(lambda data: data.type == DataType.recs,
-                             self.get_datas(a_uid))
-
-      if len(a_datas):
-        embds = from_vstack([data.embedding
-                             for data in a_datas]).to(cfg.device)
-        idxs = compose(sorted, map(snd), sorted,
-                       filter(lambda x: x[0] >= cfg.sim_thres), zip)(
-                           torch.cosine_similarity(q, embds),
-                           range(embds.shape[0]),
-                       )[-cfg.topk:]
-
-        if len(idxs):
-          new_score, max_idxs = self.context_score(q, embds[idxs], 2,
-                                                   cfg.cutoff_sim, cfg.device)
-          new_datas = [
-              Data.new(a_datas[idxs[midx]],
-                       anime_uid=a_uid,
-                       type=DataType.short) for midx in max_idxs
-          ]
-        else:
-          new_datas = [data]
-          new_score = 0.5
+        score = torch.mean(sims[topk_idxs]).item()
 
       else:
-        new_datas = [data]
-        new_score = cfg.sim_thres
-      acc_data.append((new_datas, new_score))
-      return acc_data
+        score = 1
+        texts = [data.text]
+
+      tags = self.get_tags(data.anime_uid)
+
+      if tags:
+        tag_embds = from_vstack([tag.embedding for tag in tags])
+        tag_idxs = torch.where(torch.cosine_similarity(q,tag_embds) >= cfg.tag_thres)[0]
+        tag_names = str([tags[idx].name for idx in tag_idxs])
+        texts.append(tag_names)
 
 
-    q = torch.from_numpy(search_result.query.embedding).unsqueeze(0).to(
-        cfg.device)
-    new_datas, new_scores = zip(
-        *reduce(contextscore_acc, search_result.datas, []))
-    new_scores = (compose(rescale_scores(0.5, 3), np.array)(new_scores) *
-                  search_result.scores)
-    new_scores = compose(list, concat)(
-        [[score] * len(data) for data, score, in zip(new_datas, new_scores)])
+      new_data = Data.new(data, text=texts, type=DataType.final)
 
-    return SearchResult.new(search_result,
-                            datas=compose(list, concat)(new_datas),
-                            scores=np.array(new_scores).squeeze())
+      return (new_data,score)
 
-  def context_score(self, q: Tensor, mat: Tensor, combinations: int,
-      cutoff_sim: float, device: str) -> Tuple[float, List[int]]:
-    """
-      uses brute force search with pruning to find a combination
-      of vectors that best linearly approximate the target vector q.
+    q = torch.from_numpy(search_result.query.embedding).unsqueeze(0)
+    new_datas,topk_scores = zip(*map(topk_map,search_result.datas))
+    new_scores = search_result.scores*list(topk_scores)
 
-      Parameters
-      ----------
-        q: Tensor
-          the target vector which is being approximated.
-        mat: Tensor
-          set of vectors that will be used to find approximation of the target vector q.
-        combinations: int
-          number of vectors to combine to approximate the target vector.
-        cutoff_sim: int
-          pruning some combinations of vector from set of vectors mat that are too similar to
-          each other.
-        device: str
-          "cpu" or "cuda".
+    return SearchResult.new(search_result,datas=new_datas,scores=new_scores)
 
-      Returns
-      ----------
-        Tuple[float,List[int]]
-          float: context score between the best combination of the vectors and
-                 target vector
-          List[int]: indexs of vector that formed the best combination.
-    """
-
-    if combinations > mat.shape[0]:
-      sims = torch.cosine_similarity(q, mat)
-      return torch.mean(sims).item(), [int(torch.argmax(sims))]
-
-    else:
-      _adjmat = pair_sim(mat, mat)
-      comb_idxs = compose(
-          list,
-          filter(lambda idx: _adjmat[tuple(idx)] <= cutoff_sim),
-          torch.combinations,
-      )(torch.arange(mat.shape[0]), combinations)
-
-      if len(comb_idxs):
-        q_mat = (torch.vstack([q for _ in range(len(comb_idxs))
-                               ]).unsqueeze(-1).to(device))
-        mat = torch.vstack([mat[c_idx].T.unsqueeze(0) for c_idx in comb_idxs])
-
-        mat_t = torch.movedim(mat.T, -1, 0).to(device)
-        r = l2_approx(q_mat, mat, mat_t)
-        max_idx = torch.argmax(torch.sum(r, 1))
-        return (
-            torch.cosine_similarity(
-                torch.movedim(mat[max_idx] @ r[max_idx], 1, 0), q).item(),
-            comb_idxs[max_idx],
-        )
-      else:
-        r = l2_approx(q.squeeze(), mat.T, mat)
-        return torch.cosine_similarity((mat.T @ r).unsqueeze(0),
-                                       q).item(), [int(torch.argmax(r))]
