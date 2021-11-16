@@ -94,10 +94,10 @@ class SearchWidget(BaseWidget):
 @dataclass
 class ItemWidget(BaseWidget):
   data: Data
-  info_base: InfoBase
+  info: AnimeInfo
 
   def __post_init__(self):
-    self.name = self.info_base[self.data.anime_uid].names[1]
+    self.name = self.info.names[1]
 
     #TODO: very bad way to taking out tags will improve it later.
 
@@ -138,6 +138,7 @@ class ItemWidget(BaseWidget):
 @dataclass
 class ResultWidget(BaseWidget):
   search_engine: SearchPipelineBase
+  info_base: InfoBase
   style: Layout
 
   def __call__(self, text: str):
@@ -145,7 +146,7 @@ class ResultWidget(BaseWidget):
     items = []
 
     for data in search_result.datas:
-      item = ItemWidget(self.main_layout,self.canvas,data)
+      item = ItemWidget(self.main_layout,self.canvas,data,self.info_base[data.anime_uid])
       items.append(item())
     return Box(items,layout=self.style)
 
