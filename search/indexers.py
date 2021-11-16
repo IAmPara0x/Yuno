@@ -589,7 +589,7 @@ class TopkIdxr(IndexerBase):
   cfg: TopkIdxrCfg
 
   @staticmethod
-  def new(search_base: SearchBase, cfg: TopkIdxrCfg) -> TopkIdxr:
+  def new(search_base: SearchBase, cfg: TopkIdxrCfg) -> "TopkIdxr":
     return TopkIdxr(search_base,cfg)
 
   @sort_search
@@ -607,7 +607,7 @@ class TopkIdxr(IndexerBase):
       texts = []
       if datas:
         sims = torch.cosine_similarity(q,from_vstack([data.embedding for data in datas]))
-        topk_idxs = torch.topk(sims,k=cfg.topk).indices
+        topk_idxs = torch.topk(sims,k=min(cfg.topk,len(sims))).indices
         texts = [datas[idx].text for idx in topk_idxs]
 
         score = torch.mean(sims[topk_idxs]).item()
@@ -634,4 +634,3 @@ class TopkIdxr(IndexerBase):
     new_scores = search_result.scores*list(topk_scores)
 
     return SearchResult.new(search_result,datas=new_datas,scores=new_scores)
-

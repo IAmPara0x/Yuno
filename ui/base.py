@@ -1,9 +1,15 @@
 from dataclasses import dataclass, field
 from typing import List, Dict,Callable
 import numpy as np
-from toolz import curry
+from cytoolz import curry
 
 from ipywidgets import (Layout,Box,HTML,Output,Text,Button)
+
+#NOTE: not recommended use `pipenv install`.
+# But using it alternative will take lot to time to install all the packages required
+
+import sys, os
+sys.path.insert(0, os.path.abspath('..'))
 
 from search.base import AnimeUid, Data, Query
 from search.pipelines import SearchPipelineBase

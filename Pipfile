@@ -1,0 +1,19 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+cytoolz = "==0.11.2"
+returns = "==0.17.0"
+transformers = "==4.6.1"
+faiss-cpu = "==1.7.1"
+torch="==1.7.0"
+ipywidgets
+
+
+[dev-packages]
+spacy="==2.3.7"
+
+[requires]
+python_version = "3.9"

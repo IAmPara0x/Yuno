@@ -76,7 +76,11 @@ class TagIdxr(IndexerBase):
     anime_mat = anime_mat.reshape(-1)
     return cos_sim(anime_mat, query_mat).item()
 
-#NOTE: This indexer takes too much time coz of brute force search.
+"""
+This indexer takes too much time coz of brute force search.
+And it fails when the matrix is not invertible.
+"""
+
 @dataclass(init=True, frozen=True)
 class ContextIdxr(IndexerBase):
   """
