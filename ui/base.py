@@ -2,17 +2,15 @@ from dataclasses import dataclass, field
 from typing import List, Dict,Callable
 import numpy as np
 from cytoolz import curry
+import ast
 
 from ipywidgets import (Layout,Box,HTML,Output,Text,Button)
 
 #NOTE: not recommended use `pipenv install`.
 # But using it alternative will take lot to time to install all the packages required
 
-import sys, os
-sys.path.insert(0, os.path.abspath('..'))
-
-from search.base import AnimeUid, Data, Query
-from search.pipelines import SearchPipelineBase
+from ..search.base import AnimeUid, Data, Query
+from ..search.pipelines import SearchPipelineBase
 from .templates import Templates
 
 
@@ -28,6 +26,9 @@ class AnimeInfo:
 @dataclass(init=True, repr=False, frozen=True)
 class InfoBase:
   _anime_infos: Dict[AnimeUid,AnimeInfo]
+
+  def __getitem__(self,anime_uid: AnimeUid) -> AnimeInfo:
+    return self._anime_infos[anime_uid]
 
 
 class LayoutState:
@@ -92,13 +93,26 @@ class SearchWidget(BaseWidget):
 
 @dataclass
 class ItemWidget(BaseWidget):
-  data: int
+  data: Data
+  info_base: InfoBase
 
   def __post_init__(self):
-    self.info_area = self.templates.info_template(info_base._anime_infos[self.data.anime_uid].names[0],
-                                                  ["Romance", "Tragedy"])
+    self.name = self.info_base[self.data.anime_uid].names[1]
+
+    #TODO: very bad way to taking out tags will improve it later.
+
+    try:
+      self.tags = ast.literal_eval(self.data.text[-1])
+      self.texts = self.data.text[:-1]
+    except ValueError:
+      self.tags = []
+      self.texts = self.data.text
+
+    self.info_area = self.templates.item_template(self.name, self.tags)
     self.info_btn = self.templates.info_btn
     self.info_btn.on_click(self.process)
+
+    self.back_btn = self.templates.back_btn
 
   def __call__(self):
     return Box([self.info_area,self.info_btn],
@@ -108,7 +122,7 @@ class ItemWidget(BaseWidget):
 
     prev_state = self.main_layout.states.copy()
     self.main_layout.clear_states()
-    self.main_layout.add(HTML(value=f"<p> {self.data.text} </p>", layout=Layout(flex="0 1 auto")))
+    self.main_layout.add(self.templates.info_template(self.name,self.texts))
     self.back_btn.on_click(self.revert(prev_state))
     self.main_layout.add(self.back_btn)
 
@@ -123,7 +137,7 @@ class ItemWidget(BaseWidget):
 
 @dataclass
 class ResultWidget(BaseWidget):
-  search_engine: int
+  search_engine: SearchPipelineBase
   style: Layout
 
   def __call__(self, text: str):
