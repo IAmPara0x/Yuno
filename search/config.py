@@ -88,11 +88,11 @@ def acc_sum(scores: np.ndarray) -> float:
   return reduce(operator.add, scores, 0)
 
 
-search_cfg = config.SearchCfg(1280, 128, 1.25)
-accindexer_cfg = config.AccIdxrCfg(config.acc_sum)
-tagsimindexer_cfg = config.TagSimIdxrCfg(True,False,2)
-nodeindexer_cfg = config.NodeIdxrCfg(1.0, "cuda")
-topkindexer_cfg = config.TopkIdxrCfg(10,0.60)
+search_cfg = SearchCfg(1280, 128, 1.25)
+accindexer_cfg = AccIdxrCfg(acc_sum)
+tagsimindexer_cfg = TagSimIdxrCfg(True,False,2)
+nodeindexer_cfg = NodeIdxrCfg(1.0, "cuda")
+topkindexer_cfg = TopkIdxrCfg(10,0.60)
 # contextidxr_cfg = ContextIdxrCfg(0.65, 0.7,"cuda")
 
 default_cfg = Config(search_cfg,
