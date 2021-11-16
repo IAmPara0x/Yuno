@@ -26,8 +26,7 @@ class Templates:
               <h3 style="color: {Colors.peach2}; text-align-last: center; margin-bottom: 3%;">{name}</h3>
             """
 
-  @staticmethod
-  def item_template(name: str, tags: List[str]):
+  def item_template(self, name: str, tags: List[str]):
     item_style = """
                     <style>
                       ul.tags{
@@ -39,6 +38,7 @@ class Templates:
                         background-color: #1F1D36;
                         color: #F7DBF0;
                         margin-right: 1%;
+                        margin-bottom: 1%;
                         padding: 1%;
                         border: 2px solid;
                         border-radius: 3px;
@@ -62,8 +62,7 @@ class Templates:
             """
     return HTML(value=value, layout=Layout(flex="3 1 88%"))
 
-  @staticmethod
-  def info_template(name: str, texts: List[str]):
+  def info_template(self, name: str, texts: List[str]):
     info_style = """
                   <style>
                     li.text{
@@ -82,6 +81,7 @@ class Templates:
     texts_html = " ".join([text_template(text) for text in texts])
 
     value = f"""
+              {info_style}
               <p style="background: {Colors.black};">
                 {self.heading_template(name)}
                 <ol>
@@ -91,7 +91,7 @@ class Templates:
               <hr style="border: 1px solid {Colors.light_purple};">
               <br>
             """
-    return HTML(value=valye,lambda=Layout(flex="0 1 100%"))
+    return HTML(value=value,layout=Layout(flex="0 1 100%"))
 
   @property
   def loading_widget(self):
@@ -171,27 +171,10 @@ class Templates:
                         outline-color: #916BBF;
                         color: #FDD2BF;
                       }
-                    </style>""")
-
-    display(btn_style)
-    btn = Button(description="search", icon="search", layout=Layout(flex="1 1 15%"))
-    btn.add_class("main-btn")
-    return btn
-
-  @property
-  def info_btn(self):
-    btn = Button(description="more info", layout=Layout(flex="1 1 12%"))
-    btn.add_class("main-btn")
-    return btn
-
-  @property
-  def back_btn(self):
-    btn_style = HTML("""<style>
-                        .back-btn {
+                      .back-btn {
                           background-color:#852747;
                           border-radius: 3px;
                           border: 1px solid #916BBF;
-                          padding: 1% 2%;
 
                           box-sizing: border-box;
                           color:  #F9F9F9;
@@ -199,6 +182,7 @@ class Templates:
                           font-family: Arial, Helvetica, sans-serif;
                           font-size: 12px;
                           outline-color: #916BBF;
+                          text-align: center;
                         }
 
                       .back-btn:hover,
@@ -211,9 +195,23 @@ class Templates:
                           box-shadow: none !important;
                           background-color: #DF5E5E;
                           outline-color: #916BBF;
-                          color: #FDD2BF;
+                          color: #F9F9F9;
                         }
-                        </style>""")
+                    </style>""")
+
+    display(btn_style)
+    btn = Button(description="search", icon="search", layout=Layout(flex="1 1 15%"))
+    btn.add_class("main-btn")
+    return btn
+
+  @property
+  def info_btn(self):
+    btn = Button(description="more info", layout=Layout(flex="1 1 12%", margin="4% 0 0 0"))
+    btn.add_class("main-btn")
+    return btn
+
+  @property
+  def back_btn(self):
     btn = Button(description="Back")
     btn.add_class("back-btn")
     return btn
@@ -238,4 +236,3 @@ class Templates:
     search_bar = Text(placeholder="search ...", layout=Layout(flex="3 1 85%"))
     search_bar.add_class("searchTerm")
     return search_bar
-

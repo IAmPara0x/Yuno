@@ -97,7 +97,7 @@ class ItemWidget(BaseWidget):
   info: AnimeInfo
 
   def __post_init__(self):
-    self.name = self.info.names[1]
+    self.name = self.info.names[0]
 
     #TODO: very bad way to taking out tags will improve it later.
 
@@ -120,18 +120,18 @@ class ItemWidget(BaseWidget):
 
   def process(self,_):
 
-    prev_state = self.main_layout.states.copy()
+    prev_states = self.main_layout.states.copy()
     self.main_layout.clear_states()
     self.main_layout.add(self.templates.info_template(self.name,self.texts))
-    self.back_btn.on_click(self.revert(prev_state))
+    self.back_btn.on_click(self.revert(prev_states))
     self.main_layout.add(self.back_btn)
 
     with self.canvas:
       self.main_layout(clear=True)
 
   @curry
-  def revert(self,prev_state,_):
-    self.main_layout.state = prev_state
+  def revert(self,prev_states,_):
+    self.main_layout.states = prev_states
     with self.canvas:
       self.main_layout(clear=True)
 
@@ -142,11 +142,11 @@ class ResultWidget(BaseWidget):
   style: Layout
 
   def __call__(self, text: str):
-    search_result = self.search_engine(base.Query(text, None))
+    search_result = self.search_engine(Query(text, None))
     items = []
 
     for data in search_result.datas:
-      item = ItemWidget(self.main_layout,self.canvas,data,self.info_base[data.anime_uid])
+      item = ItemWidget(self.main_layout,self.canvas,data,self.info_base._anime_infos[data.anime_uid])
       items.append(item())
     return Box(items,layout=self.style)
 
