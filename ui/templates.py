@@ -1,5 +1,8 @@
 from ipywidgets import Button,HTML,Layout,Box,Text
 from typing import List
+from pathlib import Path
+
+path = Path(__file__).parent
 
 
 class Colors:
@@ -21,7 +24,7 @@ class Colors:
 class Templates:
 
   def __init__(self):
-    with open("styles.html", "r") as f:
+    with open(f"{path}/styles.html", "r") as f:
       styles = f.read()
       display(HTML(value = styles))
 
@@ -50,14 +53,16 @@ class Templates:
                     alt="" class="info">
                   {tags_html}
                 </div>
-                <a href={self.url} class="url" target="_blank">MAL</a>
+                <div class="btn-flex">
+                  <a href={url} class="url" target="_blank">MAL</a>
+                </div>
               </div>
             """
 
-    return HTML(value=value, layout=Layout(flex="3 1 88%"))
+    return HTML(value=value, layout=Layout(flex="3 1 100%"))
 
   def info_template(self, name: str, texts: List[str]):
-    text_template = lambda text: f"<li class='text'><p>{text}</p></li>"
+    text_template = lambda text: f"<li class='text-box'><p>{text}</p></li>"
     texts_html = " ".join([text_template(text) for text in texts])
 
     value = f"""
@@ -94,8 +99,9 @@ class Templates:
 
   @property
   def info_btn(self):
-    btn = Button(description="more info", layout=Layout(flex="1 1 12%", margin="4% 0 0 0"))
+    btn = Button(description="More Info")
     btn.add_class("main-btn")
+    btn.add_class("info-btn")
     return btn
 
   @property

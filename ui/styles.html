@@ -1,4 +1,5 @@
 <style>
+
   .searchTerm {
     border: 3px solid #916BBF;
     border-radius: 3px;
@@ -21,17 +22,18 @@
   }
 
   .main-btn {
-      background-color: #3F3351;
-      border-radius: 3px;
-      border: 1px solid #916BBF;
+            background-color: #3F3351;
+            border-radius: 3px;
+            border: 1px solid #916BBF;
 
-      box-sizing: border-box;
-      color: #FDD2BF;
-      cursor: pointer;
-      font-family: Verdana;
-      font-size: 12px;
-      outline-color: #916BBF;
-    }
+            box-sizing: border-box;
+            color: #FDD2BF;
+            cursor: pointer;
+            font-family: Verdana;
+            font-size: 12px;
+            outline-color: #916BBF;
+            margin-top: 5px;
+          }
 
   .main-btn:hover,
   .main-btn:focus {
@@ -55,16 +57,16 @@ div.container {
   flex-direction: column;
   flex-wrap: wrap;
   justify-content: stretch;
-  width: 100%;
+  width: 88%;
   border: 1px solid #BEAEE2;
-  border-radius: 5px;
 }
 
 div.main{
   display: flex;
   flex-direction: row;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   width: 100%;
+  justify-content: flex-start;
 }
 
 h2.heading {
@@ -126,10 +128,14 @@ a.url:hover {
   background-color: #6166B3;
 }
 
-li.text-box{
+li.text{
+  background-color: #1F1D36;
   color: #F9F9F9;
+  margin-bottom: 1%;
   padding-left: 0.5%;
-  font-weight: 300;
+  border: 1px solid;
+  border-radius: 3px;
+  border-color: #916BBF;
   font-family: Arial, Helvetica, sans-serif;
 }
 
@@ -174,22 +180,6 @@ li.text-box{
   background-color: #DF5E5E;
   outline-color: #916BBF;
   color: #F9F9F9;
-}
-
-
-div.btn-flex{
-  display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  width: 100%;
-  justify-content: space-between;
-  font-weight: 900;
-}
-
-.info-btn {
- align-self: center;
- font-weight: 900;
- margin: 5px;
 }
 
 </style>
