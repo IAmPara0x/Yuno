@@ -97,7 +97,7 @@ class ItemWidget(BaseWidget):
   info: AnimeInfo
 
   def __post_init__(self):
-    self.name = self.info.names[0]
+    self.name = self.info.names[1] if self.info.names[1] else self.info.names[0]
     self.url = self.info.mal_url
 
     #TODO: very bad way to taking out tags will improve it later.
@@ -105,7 +105,7 @@ class ItemWidget(BaseWidget):
     try:
       self.tags = ast.literal_eval(self.data.text[-1])
       self.texts = self.data.text[:-1]
-    except ValueError:
+    except (ValueError,SyntaxError):
       self.tags = []
       self.texts = self.data.text
 
@@ -150,5 +150,3 @@ class ResultWidget(BaseWidget):
       item = ItemWidget(self.main_layout,self.canvas,data,self.info_base._anime_infos[data.anime_uid])
       items.append(item())
     return Box(items,layout=self.style)
-
-

@@ -53,9 +53,7 @@ class Templates:
                     alt="" class="info">
                   {tags_html}
                 </div>
-                <div class="btn-flex">
                   <a href={url} class="url" target="_blank">MAL</a>
-                </div>
               </div>
             """
 
@@ -75,7 +73,7 @@ class Templates:
               <hr style="border: 1px solid {Colors.light_purple};">
               <br>
             """
-    return HTML(value=value,layout=Layout(flex="0 1 100%"))
+    return HTML(value=value,layout=Layout(flex="0 1 85%"))
 
   @property
   def loading_widget(self):
@@ -99,9 +97,8 @@ class Templates:
 
   @property
   def info_btn(self):
-    btn = Button(description="More Info")
+    btn = Button(description="More Info", layout=Layout(flex="0 1 12%", align_self="center", margin="0 0 0 1%"))
     btn.add_class("main-btn")
-    btn.add_class("info-btn")
     return btn
 
   @property
