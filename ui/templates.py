@@ -64,6 +64,7 @@ class Templates:
     texts_html = " ".join([text_template(text) for text in texts])
 
     value = f"""
+            <div class="texts">
               <p style="background: {Colors.black};">
                 {self.heading_template(name)}
                 <ol>
@@ -71,6 +72,7 @@ class Templates:
                 </ol>
               </p>
               <hr style="border: 1px solid {Colors.light_purple};">
+            </div>
               <br>
             """
     return HTML(value=value,layout=Layout(flex="0 1 85%"))
