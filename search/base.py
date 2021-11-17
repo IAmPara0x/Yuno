@@ -139,6 +139,9 @@ class ProcessedQuery:
 
 
 class DataType(Enum):
+  """
+  DataType Enum contains all the possible type for attr `Data.type`.
+  """
   long = auto()
   short = auto()
   recs = auto()
@@ -147,6 +150,19 @@ class DataType(Enum):
 
 @dataclass(init=True, repr=True, eq=True, order=False, frozen=True)
 class Data:
+  """
+  Data class contains individual chunks of text along with their embedding and
+  other information about the text. Data class is frozen.
+
+  Parameters
+  ----------
+  data_uid: DataUid
+  anime_uid: Union[AnimeUid, List[AnimeUid]] list of anime_uid there when DataType is recs.
+  embedding: np.ndarray
+  text: Union[List[str],str] List[str] is present when the DataType is final.
+  rating: int
+  type: DataType
+  """
   data_uid: DataUid          = field(repr=False)
   anime_uid: Union[AnimeUid, List[AnimeUid]]
   embedding: Embedding       = field(repr=False, compare=False)
@@ -156,6 +172,20 @@ class Data:
 
   @staticmethod
   def new(prev_result: "Data", **kwargs) -> "Data":
+    """
+      return new Data class with updated attrs this method
+      is needed since Data class is frozen.
+
+      Parameters
+      ----------
+      prev_result: Data
+      **kwargs: all the attrs that needs to be updated.
+
+      Returns
+      ----------
+      Data
+
+    """
     remaining_fields = set(prev_result.__dict__.keys()) - set(kwargs.keys())
     kwargs.update({
         field_name: getattr(prev_result, field_name)
@@ -166,6 +196,18 @@ class Data:
 
 @dataclass(init=True, repr=False, eq=False, order=False, frozen=True)
 class SearchResult:
+  """
+  SearchResult class is the class the contains all the information about the search result.
+  This the class that gets transformed by various `IndexerBase`.
+  SearchResult is frozen.
+
+  Parameters
+  ----------
+  query: ProcessedQuery -> information about the query for which the SearchResult was created.
+  datas: List[Data] -> all the Data that were similar to the provied query arranged in desc order.
+  scores: np.ndarray -> score of the all the Data.
+  config: Optional[Config] -> used to configure parameters indexers.
+  """
   query: ProcessedQuery
   datas: List[Data]
   scores: np.ndarray
@@ -173,6 +215,20 @@ class SearchResult:
 
   @staticmethod
   def new(prev_result: "SearchResult", **kwargs) -> "SearchResult":
+    """
+      return new SearchResult class with updated attrs this method
+      is needed since SearchResult class is frozen.
+
+      Parameters
+      ----------
+      prev_result: SearchResult
+      **kwargs: all the attrs that needs to be updated.
+
+      Returns
+      ----------
+      SearchResult
+    """
+
     remaining_fields = set(prev_result.__dict__.keys()) - set(kwargs.keys())
     kwargs.update({
         field_name: getattr(prev_result, field_name)
@@ -183,6 +239,22 @@ class SearchResult:
 
 @dataclass(init=True, repr=False, eq=False, order=False, frozen=True)
 class SearchBase:
+  """
+  SearchBase class contains is the hub of the all the data
+  that is present and the Transformer model that is being used.
+
+  Parameters
+  ----------
+  model: Model -> Transformer model that is being used to created embedding.
+  index: Any -> fiass is used for knn-search.
+  _data_uids: List[DataUid]
+  _search_data: Dict[DataUid, Data]
+  _animes: Dict[AnimeUid, Anime]
+  _tags: Dict[TagUid, Tag]
+  _tag_cats: Dict[TagCatUid, TagCat]
+  _genres: Dict[GenreUid, Genre]
+  """
+
   model: Model
   index: Any
   _data_uids: List[DataUid]
@@ -206,10 +278,30 @@ def singledispatchmethod(func):
 
 @dataclass(frozen=True)
 class ImplUidData:
+  """
+  ImplUidData class contains various implementations of functions that
+  takes a type of uid and returns their respective data.
+
+  Parameters
+  ----------
+  search_base: SearchBase
+
+  """
   search_base: SearchBase
 
   @singledispatchmethod
   def uid_data(self, uid):
+    """
+    uid_data function takes a type of uid and returns the data corresponding
+    to that uid. This function is implemented for following types:
+
+    GenreUid -> Genre
+    TagUid -> Tag
+    TagCatUid -> TagCat
+    DataUid -> Data
+    int -> Data
+    """
+
     raise NotImplementedError
 
   @uid_data.register(GenreUid)
@@ -239,10 +331,29 @@ class ImplUidData:
 
 @dataclass(frozen=True)
 class ImplTags(ImplUidData):
+  """
+  ImplTags class contains various implementations of functions that
+  takes a type of data and returns their respective `Tags`.
+
+  Parameters
+  ----------
+  search_base: SearchBase
+
+  """
   search_base: SearchBase
 
   @singledispatchmethod
   def get_tags(self, d_type) -> List[Tag]:
+    """
+    get_tags function takes a type data and returns the `List[Tag]` corresponding
+    to that data. This function is implemented for following types:
+
+    AllData -> List[Tag]
+    Anime -> List[Tag]
+    AnimeUid -> List[Tag]
+    TagCat -> List[Tag]
+    TagCatUid -> List[Tag]
+    """
     raise NotImplementedError
 
   @get_tags.register(AllData)
@@ -268,10 +379,25 @@ class ImplTags(ImplUidData):
 
 @dataclass(frozen=True)
 class ImplTagCats:
+  """
+  ImplTagCats class contains various implementations of functions that
+  takes a type of data and returns their respective `TagCat`.
+
+  Parameters
+  ----------
+  search_base: SearchBase
+
+  """
   search_base: SearchBase
 
   @singledispatchmethod
   def get_tagcats(self, d_type) -> List[TagCat]:
+    """
+    get_tagcats function takes a type data and returns the `List[TagCat]` corresponding
+    to that data. This function is implemented for following types:
+
+    AllData -> List[TagCat]
+    """
     raise NotImplementedError
 
   @get_tagcats.register(AllData)
@@ -281,10 +407,29 @@ class ImplTagCats:
 
 @dataclass(frozen=True)
 class ImplAnimes(ImplUidData):
+  """
+  ImplAnimes class contains various implementations of functions that
+  takes a type of data and returns their respective `Anime`.
+
+  Parameters
+  ----------
+  search_base: SearchBase
+
+  """
+
   search_base: SearchBase
 
   @singledispatchmethod
   def get_animes(self, d_type) -> List[Anime]:
+    """
+    get_animes function takes a type data and returns the `List[Anime]` corresponding
+    to that data. This function is implemented for following types:
+
+    SearchResult -> List[Anime]
+    AllData -> List[Anime]
+
+    """
+
     raise NotImplementedError
 
   @get_animes.register(SearchResult)
@@ -298,10 +443,29 @@ class ImplAnimes(ImplUidData):
 
 @dataclass(frozen=True)
 class ImplDatas(ImplUidData):
+  """
+  ImplDatas class contains various implementations of functions that
+  takes a type of data and returns their respective `Data`.
+
+  Parameters
+  ----------
+  search_base: SearchBase
+
+  """
   search_base: SearchBase
 
   @singledispatchmethod
   def get_datas(self, d_type) -> List[Data]:
+    """
+    get_datas function takes a type data and returns the `List[data]` corresponding
+    to that data. This function is implemented for following types:
+
+    Anime -> List[Data]
+    AnimeUid -> List[Data]
+    SearchResult -> List[Data]
+
+    """
+
     raise NotImplementedError
 
   @get_datas.register(Anime)
@@ -319,10 +483,27 @@ class ImplDatas(ImplUidData):
 
 @dataclass(frozen=True)
 class ImplTexts:
+  """
+  ImplTexts class contains various implementations of functions that
+  takes a type of data and returns their respective `str`.
+
+  Parameters
+  ----------
+  search_base: SearchBase
+
+  """
   search_base: SearchBase
 
   @singledispatchmethod
   def get_texts(self, d_type) -> List[str]:
+    """
+    get_texts function takes a type data and returns the `List[str]` corresponding
+    to that data. This function is implemented for following types:
+
+    SearchResult -> List[Union[List[str], str]]
+
+    """
+
     raise NotImplementedError
 
   @get_texts.register(SearchResult)
@@ -332,10 +513,30 @@ class ImplTexts:
 
 @dataclass(frozen=True)
 class ImplEmbeddings(ImplUidData):
+  """
+  ImplEmbeddings class contains various implementations of functions that
+  takes a type of data and returns their respective embedding ie `np.ndarray`.
+
+  Parameters
+  ----------
+  search_base: SearchBase
+
+  """
   search_base: SearchBase
 
   @singledispatchmethod
   def get_embeddings(self, d_type) -> np.ndarray:
+    """
+    get_embeddings function takes a type data and returns the embeddings corresponding
+    to that data. This function is implemented for following types:
+
+    searchResult -> np.ndarray
+    ProcessedQuery -> np.ndarray
+    Data -> np.ndarray
+    DataUid -> np.ndarray
+
+    """
+
     raise NotImplementedError
 
   @get_embeddings.register(SearchResult)
@@ -360,6 +561,10 @@ class Impl(ImplTags, ImplTagCats, ImplAnimes, ImplDatas, ImplTexts, ImplEmbeddin
 
 @dataclass(frozen=True)
 class IndexerBase(Impl):
+  """
+  IndexerBase is base class the all Indexers must inherit from.
+  """
+
   @staticmethod
   def new(search_base: SearchBase, cfg):
     raise NotImplementedError

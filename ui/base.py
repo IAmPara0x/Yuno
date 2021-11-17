@@ -99,6 +99,7 @@ class ItemWidget(BaseWidget):
   def __post_init__(self):
     self.name = self.info.names[1] if self.info.names[1] else self.info.names[0]
     self.url = self.info.mal_url
+    self.img_url = self.info.img_url
 
     #TODO: very bad way to taking out tags will improve it later.
 
@@ -109,7 +110,7 @@ class ItemWidget(BaseWidget):
       self.tags = []
       self.texts = self.data.text
 
-    self.info_area = self.templates.item_template(self.name, self.tags, self.url)
+    self.info_area = self.templates.item_template(self.name, self.tags, self.url, self.img_url)
     self.info_btn = self.templates.info_btn
     self.info_btn.on_click(self.process)
 
