@@ -1,4 +1,4 @@
-from ipywidgets import Button,HTML,Layout,Box,Text
+from ipywidgets import Button,HTML,Layout,Box,Text, IntSlider
 from typing import List
 from pathlib import Path
 
@@ -7,7 +7,7 @@ path = Path(__file__).parent
 
 class Colors:
   black = "#1F1D36"
-  navy = "#3F3351"
+  navy = "#3f3351"
   purple = "#864879"
   peach = "#E9A6A6"
   peach2 = "#FDD2BF"
@@ -113,3 +113,11 @@ class Templates:
     search_bar = Text(placeholder="search ...", layout=Layout(flex="3 1 85%"))
     search_bar.add_class("searchTerm")
     return search_bar
+
+  def curiosity_widget(self) -> IntSlider:
+
+    x = IntSlider(value=128,min=32,max=284,
+        step=8,description="Curiosity ",layout=Layout(flex="0 1 50%", align_self="center"))
+    x.add_class("slider")
+    x.style.handle_color = Colors.red
+    return x

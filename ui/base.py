@@ -11,6 +11,7 @@ from ipywidgets import (Layout,Box,HTML,Output,Text,Button)
 
 from ..search.base import AnimeUid, Data, Query
 from ..search.pipelines import SearchPipelineBase
+from ..search.config import Config,SearchCfg
 from .templates import Templates
 
 
@@ -73,20 +74,23 @@ class SearchWidget(BaseWidget):
   search: Callable
 
   def __post_init__(self):
+    self.main_layout.add(self.templates.logo)
+
     self.search_btn = self.templates.search_btn
     self.search_btn.on_click(self.process)
     self.search_bar = self.templates.search_bar
+    self.curiosity = self.templates.curiosity_widget
 
   def __call__(self):
-    return Box([self.search_bar,self.search_btn])
+    return Box([self.search_bar,self.search_btn], layout=self.style)
 
   def process(self, _):
-    if len(self.main_layout) == 3:
+    if len(self.main_layout) == 4:
       self.main_layout.pop()
     self.main_layout.add(self.templates.loading_widget)
     with self.canvas:
       self.main_layout(clear=True)
-      result = self.search(self.search_bar.value)
+      result = self.search(self.search_bar.value,self.curiosity.value)
       self.main_layout.pop()
       self.main_layout.add(result)
       self.main_layout(clear=True)
@@ -143,8 +147,9 @@ class ResultWidget(BaseWidget):
   info_base: InfoBase
   style: Layout
 
-  def __call__(self, text: str):
-    search_result = self.search_engine(Query(text, None))
+  def __call__(self, text: str, curiosity: int):
+    search_cfg = SearchCfg(1280,curiosity,1.25)
+    search_result = self.search_engine(Query(text, Config(search_cfg, None, None, None, None)))
     items = []
 
     for data in search_result.datas:
