@@ -114,9 +114,10 @@ class Templates:
     search_bar.add_class("searchTerm")
     return search_bar
 
+  @property
   def curiosity_widget(self) -> IntSlider:
 
-    x = IntSlider(value=128,min=32,max=284,
+    x = IntSlider(value=128,min=32,max=384,
         step=8,description="Curiosity ",layout=Layout(flex="0 1 50%", align_self="center"))
     x.add_class("slider")
     x.style.handle_color = Colors.red
