@@ -1,4 +1,4 @@
-<h1 align="center" style="color: #916BBF;"><b>Yuno<b></h1>
+<h1 align="center" style="color: #916BBF;"><b>Yuno</b></h1>
     
 
 ![Anime where MC is smart but no one knows about it](./docs/pictures/search_result.png)
@@ -17,6 +17,7 @@
 
 
 # Introduction
+
 
 Yuno is a context based search engine that indexes over 0.5 million anime reviews and other anime informations. To help you find anime with specific properties.
 
