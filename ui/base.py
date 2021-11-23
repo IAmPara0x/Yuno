@@ -156,6 +156,6 @@ class ResultWidget(BaseWidget):
 
     for data in search_result.datas:
       item = ItemWidget(self.main_layout,self.canvas,
-                        data,self.info_base._anime_infos[data.anime_uid],use_image)
+                        data,self.info_base._anime_infos[data.anime_uid],self.use_image)
       items.append(item())
     return Box(items,layout=self.style)
