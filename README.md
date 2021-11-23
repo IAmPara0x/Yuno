@@ -34,7 +34,7 @@ anime with **medieval theme and revenge plot**. You would have to ask different 
 if anyone of them has watched such kind of anime then they will recommend it. Hence, subreddits
 like [r/Animesuggest](https://www.reddit.com/r/Animesuggest/) were created. But that's very inefficient my hypothesis was **reviews contains enough information about that particular anime
 that will statisfiy queries like mentioned above.** or framed differently **if a person looking for a specific type of anime if he/she will read all the reviews about a particular anime then
-that will be sufficient for him/her to decide wheter this anime has that specific properties or not.**
+that will be sufficient for him/her to decide whether this anime has that specific properties or not.**
 
 <hr>
 

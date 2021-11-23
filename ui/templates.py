@@ -45,11 +45,13 @@ class Templates:
                 </ul>
                 """
 
+    img_html = f"<img src={img_url} class='info'>" if img_url else ""
+
     value = f"""
               <div class="container">
                 {self.heading_template(name)}
                 <div class="main">
-                  <img src={img_url} alt="" class="info">
+                  {img_html}
                   {tags_html}
                 </div>
                   <a href={url} class="url" target="_blank">MAL</a>

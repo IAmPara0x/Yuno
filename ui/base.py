@@ -99,11 +99,12 @@ class SearchWidget(BaseWidget):
 class ItemWidget(BaseWidget):
   data: Data
   info: AnimeInfo
+  use_image: bool
 
   def __post_init__(self):
     self.name = self.info.names[1] if self.info.names[1] else self.info.names[0]
     self.url = self.info.mal_url
-    self.img_url = self.info.img_url
+    self.img_url = self.info.img_url if self.use_image else None
 
     #TODO: very bad way to taking out tags will improve it later.
 
@@ -146,6 +147,7 @@ class ResultWidget(BaseWidget):
   search_engine: SearchPipelineBase
   info_base: InfoBase
   style: Layout
+  use_image: bool
 
   def __call__(self, text: str, curiosity: int):
     search_cfg = SearchCfg(1280,curiosity,1.25)
@@ -153,6 +155,7 @@ class ResultWidget(BaseWidget):
     items = []
 
     for data in search_result.datas:
-      item = ItemWidget(self.main_layout,self.canvas,data,self.info_base._anime_infos[data.anime_uid])
+      item = ItemWidget(self.main_layout,self.canvas,
+                        data,self.info_base._anime_infos[data.anime_uid],use_image)
       items.append(item())
     return Box(items,layout=self.style)
