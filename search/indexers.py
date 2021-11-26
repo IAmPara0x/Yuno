@@ -149,8 +149,7 @@ class Search(IndexerBase):
       data = compose(self.uid_data, int)(idx)
 
       if data.type == DataType.recs:
-        datas[0].extend(
-            map(
+        datas[0].extend( map(
                 lambda a_uid: Data.new(
                     data, anime_uid=a_uid, type=DataType.short),
                 data.anime_uid), )
@@ -418,6 +417,7 @@ class TagSimIdxr(IndexerBase):
     """
 
     y = l2_approx(x, mat, mat.T)
+
     if not use_negatives and len(np.where(y < 0)[0]) > 0:
 
       mat = mat.T[torch.where(y > 0)].T
@@ -427,7 +427,7 @@ class TagSimIdxr(IndexerBase):
       if use_sim:
         return torch.cosine_similarity(mat @ y, x).item()
       else:
-        return torch.mean(y).item()
+        return torch.sum(y[torch.where(y > 0)[0]]).item() / len(y)
 
 
 @dataclass(init=True, frozen=True)
@@ -581,7 +581,8 @@ class NodeIdxr(IndexerBase):
 
     assert len(v.shape) == 2, "The dim of v must be 2"
     sims = pair_sim(v, mat)
-    return torch.mean(sims, dim=1)
+    authority = torch.mean(pair_sim(mat,mat),dim=1)
+    return torch.mean(sims*authority, dim=1)
 
 
 @dataclass(init=True, frozen=True)
