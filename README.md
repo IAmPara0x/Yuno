@@ -39,7 +39,7 @@ that will be sufficient for him/her to decide whether this anime has that specif
 <hr>
 
 ## **Try Yuno**
-1. **[Kaggle Notebook](https://www.kaggle.com/iamparadox/yunoo)**
+1. **[Kaggle Notebook](https://www.kaggle.com/iamparadox/yunoo)** (Recommended notebook)
 2. **[Colab Notebook](https://colab.research.google.com/drive/1WAewYgHDmDEWhPBBOvGgyLTiOaasVyOz?usp=sharing)**
 
 

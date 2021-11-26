@@ -620,7 +620,7 @@ class TopkIdxr(IndexerBase):
 
       if tags:
         tag_embds = from_vstack([tag.embedding for tag in tags])
-        tag_idxs = torch.where(torch.cosine_similarity(q,tag_embds) >= cfg.tag_thres)[0]
+        tag_idxs = torch.where(l2_approx(q,tag_embds.T,tag_embds)[:,0] >= cfg.tag_thres)[0]
         tag_names = str([tags[idx].name for idx in tag_idxs])
         texts.append(tag_names)
 
