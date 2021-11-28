@@ -1,4 +1,4 @@
-pip install -r requirements.txt  &> /dev/null
+pip install -r yuno/requirements.txt  &> /dev/null
 
 pip install -q kaggle
 apt-get install jq
@@ -11,7 +11,7 @@ kaggle datasets download -d sahilbannoo/yuno-search-data
 kaggle datasets download -d sahilbannoo/yunosearchinfo
 
 unzip yuno-search-data.zip && rm yuno-search-data.zip
-unzip yunosearchinfo.zip && rm yuno-search-data.zip
+unzip yunosearchinfo.zip && rm yunosearchinfo.zip
 
 
 
