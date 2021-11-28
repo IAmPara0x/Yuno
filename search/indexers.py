@@ -581,8 +581,7 @@ class NodeIdxr(IndexerBase):
 
     assert len(v.shape) == 2, "The dim of v must be 2"
     sims = pair_sim(v, mat)
-    authority = torch.mean(pair_sim(mat,mat),dim=1)
-    return torch.mean(sims*authority, dim=1)
+    return torch.mean(sims, dim=1)
 
 
 @dataclass(init=True, frozen=True)
