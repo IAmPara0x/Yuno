@@ -1,10 +1,10 @@
 pip install -r yuno/requirements.txt  &> /dev/null
 
 pip install -q kaggle
-apt-get install jq
+apt-get install gnupg
 
 mkdir ~/.kaggle
-echo '{"username":"yunogasa1","key":"801b296373c90444e6c6f30f3fdb1933"}' | jq . > ~/.kaggle/kaggle.json
+gpg --batch --output ~/.kaggle/kaggle.json --passphrase yunogasai --decrypt yuno/colab/key.json.gpg
 
 chmod 600 ~/.kaggle/kaggle.json
 kaggle datasets download -d sahilbannoo/yuno-search-data
@@ -12,6 +12,4 @@ kaggle datasets download -d sahilbannoo/yunosearchinfo
 
 unzip yuno-search-data.zip && rm yuno-search-data.zip
 unzip yunosearchinfo.zip && rm yunosearchinfo.zip
-
-
 
