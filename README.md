@@ -1,7 +1,11 @@
 <h1 align="center" style="color: #916BBF;"><b>Yuno</b></h1>
     
 
-<<video src='./docs/yuno.mp4' width=100%/>
+
+
+https://user-images.githubusercontent.com/67608276/144100319-4cb02dd8-f39d-4cbb-98a3-72a3f5b79522.mp4
+
+
 
 <br>
 
