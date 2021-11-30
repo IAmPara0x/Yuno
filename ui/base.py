@@ -154,7 +154,7 @@ class ResultWidget(BaseWidget):
     search_result = self.search_engine(Query(text, Config(search_cfg, None, None, None, None)))
     items = []
 
-    for data in search_result.datas:
+    for data in search_result.datas[:40]: #NOTE: using hard coded value to get only top 40 animes. Later change it.
       item = ItemWidget(self.main_layout,self.canvas,
                         data,self.info_base._anime_infos[data.anime_uid],self.use_image)
       items.append(item())

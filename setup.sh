@@ -1,3 +1,6 @@
+# This script is used to download dataset from kaggle to colab.
+set -e
+
 pip install -r yuno/requirements.txt  &> /dev/null
 
 pip install -q kaggle
