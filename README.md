@@ -24,12 +24,13 @@ This search engine was created to solve the problem of finding an object with sp
 
 <hr>
 
-## **Try Yuno (Both notebooks has UI.)**
+## **Try Yuno <span style="font-size:small;">(Both notebooks has UI)</span>** 
+
 1. **[Kaggle Notebook](https://www.kaggle.com/iamparadox/yunoo)** (Recommended notebook)
 2. **[Colab Notebook](https://colab.research.google.com/drive/1WAewYgHDmDEWhPBBOvGgyLTiOaasVyOz?usp=sharing)**
 
 ## **Creation**
-All the details about how Yuno was created and everything related is in the following article.
+All the details about how Yuno was created and everything related is in the following [article](https://medium.com/@confusedstudent13/yuno-context-based-search-engine-for-anime-39f5cb86f845).
 
 Below are the few kaggle notebooks that you can look into to learn more about the creation of Yuno:
 
