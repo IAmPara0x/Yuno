@@ -3,6 +3,7 @@ from typing import List, Dict,Callable
 import numpy as np
 from cytoolz import curry
 import ast
+from pathlib import Path
 
 from ipywidgets import (Layout,Box,HTML,Output,Text,Button)
 
@@ -38,10 +39,15 @@ class LayoutState:
     self.states = []
     self.canvas = canvas
 
+    styles_path = Path(__file__).parent / "styles.html"
+    with open(styles_path, "r") as f:
+      self.styles = f.read()
+
   def __call__(self,clear=False):
     with self.canvas:
       if clear:
         self.canvas.clear_output()
+        display(HTML(self.styles)) #NOTE: This is necessary because colab clears styles after `canvas.clear_out()`
       display(self.box())
 
   def __len__(self):
