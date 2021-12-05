@@ -1,19 +1,11 @@
-from typing import (Sequence,
-                    List,
-                    Callable,
-                    Any,
-                    Dict,
-                    Union,
-                    Tuple,
-                    Optional
-                    )
+from typing import (Sequence, List, Callable, Any, Dict, Union, Tuple,
+                    Optional)
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from returns.maybe import Maybe
 from functools import wraps, singledispatch, update_wrapper
 from cytoolz.curried import compose, concat, pipe  # type: ignore
 import numpy as np
-
 
 """
 Introducing new types that inherit from basic types.
@@ -28,6 +20,7 @@ class DataUid(int): pass
 class Scores(np.ndarray): pass
 class Embedding(np.ndarray): pass
 class AllData(object): pass
+
 
 from .model import Model
 from .config import Config
@@ -102,11 +95,11 @@ class Anime:
   """
 
   uid: AnimeUid
-  name: str                  = field(compare=False)
+  name: str = field(compare=False)
   genre_uids: List[GenreUid] = field(compare=False, repr=False)
-  tag_uids: List[TagUid]     = field(compare=False, repr=False)
-  tag_scores: np.ndarray     = field(compare=False, repr=False)
-  data_uids: List[DataUid]   = field(compare=False, repr=False)
+  tag_uids: List[TagUid] = field(compare=False, repr=False)
+  tag_scores: np.ndarray = field(compare=False, repr=False)
+  data_uids: List[DataUid] = field(compare=False, repr=False)
 
 
 @dataclass(init=True, repr=True, eq=False, order=False, frozen=True)
@@ -163,12 +156,12 @@ class Data:
   rating: int
   type: DataType
   """
-  data_uid: DataUid          = field(repr=False)
+  data_uid: DataUid = field(repr=False)
   anime_uid: Union[AnimeUid, List[AnimeUid]]
-  embedding: Embedding       = field(repr=False, compare=False)
-  text: Union[List[str],str] = field(compare=False)
-  rating: int                = field(compare=False)
-  type: DataType             = field(compare=False, repr=False)
+  embedding: Embedding = field(repr=False, compare=False)
+  text: Union[List[str], str] = field(compare=False)
+  rating: int = field(compare=False)
+  type: DataType = field(compare=False, repr=False)
 
   @staticmethod
   def new(prev_result: "Data", **kwargs) -> "Data":
@@ -507,7 +500,8 @@ class ImplTexts:
     raise NotImplementedError
 
   @get_texts.register(SearchResult)
-  def _searchres_texts(self, instance: SearchResult) -> List[Union[List[str], str]]:
+  def _searchres_texts(self,
+                       instance: SearchResult) -> List[Union[List[str], str]]:
     return [data.text for data in instance.datas]
 
 
@@ -556,7 +550,9 @@ class ImplEmbeddings(ImplUidData):
     return compose(self.get_embeddings, self.uid_data)(instance)
 
 
-class Impl(ImplTags, ImplTagCats, ImplAnimes, ImplDatas, ImplTexts, ImplEmbeddings): pass
+class Impl(ImplTags, ImplTagCats, ImplAnimes, ImplDatas, ImplTexts,
+           ImplEmbeddings):
+  pass
 
 
 @dataclass(frozen=True)
@@ -564,9 +560,8 @@ class IndexerBase(Impl):
   """
   IndexerBase is base class the all Indexers must inherit from.
   """
-
   @staticmethod
-  def new(search_base: SearchBase, cfg):
+  def new(_: SearchBase, cfg):
     raise NotImplementedError
 
   def model(self, text: str) -> np.ndarray:
@@ -576,13 +571,13 @@ class IndexerBase(Impl):
                  top_k: int) -> Tuple[np.ndarray, np.ndarray]:
     return self.search_base.index.search(q_embedding, top_k)
 
-  def __call__(self, search_result) -> SearchResult:
+  def __call__(self, _) -> SearchResult:
     raise NotImplementedError
 
 
 @dataclass
 class QueryProcessorBase:
-  def __call__(self, search_result: Query) -> Query:
+  def __call__(self, _: Query) -> Query:
     raise NotImplementedError
 
 
@@ -594,7 +589,7 @@ class SearchPipelineBase(Impl):
   indexer_pipeline: Sequence[Callable[[SearchResult], SearchResult]]
 
   @staticmethod
-  def new(search_base: SearchBase, cfg):
+  def new(_: SearchBase, cfg):
     raise NotImplementedError
 
   def __call__(self, query: Query) -> SearchResult:

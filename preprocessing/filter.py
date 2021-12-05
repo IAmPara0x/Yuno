@@ -1,6 +1,6 @@
 import re
 from typing import List, NamedTuple, Callable
-from cytoolz.curried import reduce,compose
+from cytoolz.curried import reduce, compose
 from enum import Enum
 import inspect
 
@@ -38,33 +38,42 @@ class FilterText:
     custom filters can be added using 'add_filter' method that replace desired text with
     desired special token.
   """
-  _filter_names = ["filter_anime_names","filter_character_names"]
+  _filter_names = ["filter_anime_names", "filter_character_names"]
 
-  def __init__(self,anime_infos: List[AnimeInfo]):
-    self.anime_infos = {anime_info.uid: anime_info for anime_info in anime_infos}
+  def __init__(self, anime_infos: List[AnimeInfo]):
+    self.anime_infos = {
+        anime_info.uid: anime_info
+        for anime_info in anime_infos
+    }
 
   @staticmethod
-  def filter_anime_names(anime_info:AnimeInfo, texts:List[str]) -> List[str]:
+  def filter_anime_names(anime_info: AnimeInfo, texts: List[str]) -> List[str]:
     anime_names = r"\b|\b".join([re.escape(name) for name in anime_info.names])
-    regexp = lambda text: re.sub(rf"(?i){anime_names}", f"{SpecialToken.anime_name_token}",text)
-    return compose(list,map)(regexp,texts)
+    regexp = lambda text: re.sub(rf"(?i){anime_names}",
+                                 f"{SpecialToken.anime_name_token}", text)
+    return compose(list, map)(regexp, texts)
 
   @staticmethod
-  def filter_character_names(anime_info:AnimeInfo, texts:List[str]) -> List[str]:
+  def filter_character_names(anime_info: AnimeInfo,
+                             texts: List[str]) -> List[str]:
     characters = anime_info.characters
 
     def sub_char_name(char, texts):
       char_names = r"\b|\b".join([re.escape(name) for name in char.names])
-      return [re.sub(rf"(?i){char_names}",f"{char.gender.value}",text) for text in texts]
+      return [
+          re.sub(rf"(?i){char_names}", f"{char.gender.value}", text)
+          for text in texts
+      ]
 
     def names_filter(chars, texts):
       if not chars: return texts
-      return names_filter(chars[1:],sub_char_name(chars[0],texts))
+      return names_filter(chars[1:], sub_char_name(chars[0], texts))
 
     return names_filter(characters, texts)
 
   @classmethod
-  def add_filter(cls,name: str, func: Callable[[AnimeInfo,List[str]], List[str]]):
+  def add_filter(cls, name: str, func: Callable[[AnimeInfo, List[str]],
+                                                List[str]]):
     """
     add custom filter that will replace particular text with special tokens.
 
@@ -80,15 +89,15 @@ class FilterText:
     None
     """
     cls._filter_names.append(name)
-    setattr(cls,name,staticmethod(func))
+    setattr(cls, name, staticmethod(func))
 
-  def filter(self, uid:int, texts: List[str], filter_name:str):
+  def filter(self, uid: int, texts: List[str], filter_name: str):
     anime_info = self.anime_infos[uid]
-    dispatch = getattr(self,filter_name)
+    dispatch = getattr(self, filter_name)
     assert inspect.isfunction(dispatch) == True
-    return dispatch(anime_info,texts)
+    return dispatch(anime_info, texts)
 
-  def filter_all(self, uid:int, texts:List[str]) -> List[str]:
+  def filter_all(self, uid: int, texts: List[str]) -> List[str]:
     for filter_name in self._filter_names:
       texts = self.filter(uid, texts, filter_name)
     return texts

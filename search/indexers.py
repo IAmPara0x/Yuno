@@ -1,60 +1,43 @@
 from typing import (
-  List,
-  Dict,
-  TypeVar,
-  Optional,
-  Tuple,
+    Dict,
+    Tuple,
 )
 from cytoolz.curried import (  # type: ignore
-  compose,
-  flip,
-  map,
-  curry,
-  filter,
-  reduce,
-  groupby,
-  concat,
-  valmap,
+    compose, flip, map, curry, reduce, groupby, concat, valmap,
 )
 from dataclasses import dataclass
-from operator import itemgetter
 import gc
 import numpy as np
 import torch
 
 from .base import (
-  AnimeUid,
-  Query,
-  ProcessedQuery,
-  Data,
-  DataType,
-  IndexerBase,
-  SearchResult,
-  SearchBase,
-  process_result,
-  sort_search,
+    AnimeUid,
+    Query,
+    ProcessedQuery,
+    Data,
+    DataType,
+    IndexerBase,
+    SearchResult,
+    SearchBase,
+    process_result,
+    sort_search,
 )
-from .config import (
-  SearchCfg,
-  AccIdxrCfg,
-  NodeIdxrCfg,
-  TagSimIdxrCfg,
-  TopkIdxrCfg
-)
+from .config import (SearchCfg, AccIdxrCfg, NodeIdxrCfg, TagSimIdxrCfg,
+                     TopkIdxrCfg)
 from .utils import (
-  Result,
-  getattr,
-  fst,
-  snd,
-  rescale_scores,
-  cos_sim,
-  get_config,
-  group_data,
-  ungroup_data,
-  pair_sim,
-  from_vstack,
-  l2_approx,
-  datas_filter,
+    Result,
+    getattr,
+    fst,
+    snd,
+    rescale_scores,
+    cos_sim,
+    get_config,
+    group_data,
+    ungroup_data,
+    pair_sim,
+    from_vstack,
+    l2_approx,
+    datas_filter,
 )
 
 Tensor = torch.Tensor
@@ -144,12 +127,12 @@ class Search(IndexerBase):
         SearchResult
 
     """
-
     def acc_fn(datas, idx):
       data = compose(self.uid_data, int)(idx)
 
       if data.type == DataType.recs:
-        datas[0].extend( map(
+        datas[0].extend(
+            map(
                 lambda a_uid: Data.new(
                     data, anime_uid=a_uid, type=DataType.short),
                 data.anime_uid), )
@@ -256,7 +239,6 @@ class AccIdxr(IndexerBase):
       ----------
         SearchResult
     """
-
     def acc_fn(acc_data, a_datas):
       data = a_datas[0][0]
       score = compose(cfg.score_fn, list, map(snd))(a_datas)
@@ -358,7 +340,6 @@ class TagSimIdxr(IndexerBase):
       ----------
         SearchResult
     """
-
     def approx_map(item):
       a_uid, datas, scores = item[0], *map(list, zip(*item[1]))  # type: ignore
       scores, a_tags = np.array(scores), self.get_tags(a_uid)
@@ -497,7 +478,8 @@ class NodeIdxr(IndexerBase):
     gc.collect()
     return self.node_idxr(search_result, cfg)
 
-  def node_idxr(self, search_result: SearchResult, cfg: NodeIdxrCfg) -> SearchResult:
+  def node_idxr(self, search_result: SearchResult,
+                cfg: NodeIdxrCfg) -> SearchResult:
     """
       scores the data in search_result according to the score returned
       by method node_rank times weight ie. provided in NodeIdxrCfg.
@@ -511,7 +493,6 @@ class NodeIdxr(IndexerBase):
       ----------
         SearchResult
     """
-
     def noderank_map(item):
       a_uid, grp_types = item
       a_ds = datas_filter(lambda data: data.type == DataType.long,
@@ -541,7 +522,7 @@ class NodeIdxr(IndexerBase):
                                      mat).cpu().numpy() * cfg.weight
 
         pairs = concat([
-            v for k, v in sorted(grp_types.items(), key=lambda t: t[0].value)
+            v for _, v in sorted(grp_types.items(), key=lambda t: t[0].value)
         ])
 
       return (
@@ -590,24 +571,25 @@ class TopkIdxr(IndexerBase):
 
   @staticmethod
   def new(search_base: SearchBase, cfg: TopkIdxrCfg) -> "TopkIdxr":
-    return TopkIdxr(search_base,cfg)
+    return TopkIdxr(search_base, cfg)
 
   @sort_search
-  def __call__(self,search_result: SearchResult) -> SearchResult:
+  def __call__(self, search_result: SearchResult) -> SearchResult:
     cfg = get_config(search_result.config, self.cfg, "topkindexer_cfg")
     gc.collect()
     return self.topk_idxr(search_result, cfg)
 
-  def topk_idxr(self,search_result: SearchResult, cfg: TopkIdxrCfg) -> SearchResult:
-
-    def topk_map(data: Data) -> Tuple[Data,float]:
+  def topk_idxr(self, search_result: SearchResult,
+                cfg: TopkIdxrCfg) -> SearchResult:
+    def topk_map(data: Data) -> Tuple[Data, float]:
       datas = datas_filter(lambda data: data.type == DataType.recs,
                            self.get_datas(data.anime_uid))
 
       texts = []
       if datas:
-        sims = torch.cosine_similarity(q,from_vstack([data.embedding for data in datas]))
-        topk_idxs = torch.topk(sims,k=min(cfg.topk,len(sims))).indices
+        sims = torch.cosine_similarity(
+            q, from_vstack([data.embedding for data in datas]))
+        topk_idxs = torch.topk(sims, k=min(cfg.topk, len(sims))).indices
         texts = [datas[idx].text for idx in topk_idxs]
 
         score = torch.mean(sims[topk_idxs]).item()
@@ -620,17 +602,17 @@ class TopkIdxr(IndexerBase):
 
       if tags:
         tag_embds = from_vstack([tag.embedding for tag in tags])
-        tag_idxs = torch.where(l2_approx(q.squeeze(),tag_embds.T,tag_embds) >= cfg.tag_thres)[0]
+        tag_idxs = torch.where(
+            l2_approx(q.squeeze(), tag_embds.T, tag_embds) >= cfg.tag_thres)[0]
         tag_names = str([tags[idx].name for idx in tag_idxs])
         texts.append(tag_names)
 
-
       new_data = Data.new(data, text=texts, type=DataType.final)
 
-      return (new_data,score)
+      return (new_data, score)
 
     q = torch.from_numpy(search_result.query.embedding).unsqueeze(0)
-    new_datas,topk_scores = zip(*map(topk_map,search_result.datas))
-    new_scores = search_result.scores*list(topk_scores)
+    new_datas, topk_scores = zip(*map(topk_map, search_result.datas))
+    new_scores = search_result.scores * list(topk_scores)
 
-    return SearchResult.new(search_result,datas=new_datas,scores=new_scores)
+    return SearchResult.new(search_result, datas=new_datas, scores=new_scores)

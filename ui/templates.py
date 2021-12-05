@@ -1,4 +1,4 @@
-from ipywidgets import Button,HTML,Layout,Box,Text, IntSlider
+from ipywidgets import Button, HTML, Layout, Box, Text, IntSlider
 from typing import List
 from pathlib import Path
 
@@ -22,11 +22,10 @@ class Colors:
 
 
 class Templates:
-
   def __init__(self):
     with open(f"{path}/styles.html", "r") as f:
       styles = f.read()
-      display(HTML(value = styles))
+      display(HTML(value=styles))
 
   @staticmethod
   def heading_template(name) -> str:
@@ -34,7 +33,8 @@ class Templates:
               <h2 class="heading"> <b> {name} </b> </h2>
             """
 
-  def item_template(self, name: str, tags: List[str], url: str, img_url: str) -> HTML:
+  def item_template(self, name: str, tags: List[str], url: str,
+                    img_url: str) -> HTML:
     tag_template = lambda tag_name: f"<li class='tag'>{tag_name}</li>"
     tags = " ".join([tag_template(tag) for tag in tags])
 
@@ -76,7 +76,7 @@ class Templates:
             </div>
               <br>
             """
-    return HTML(value=value,layout=Layout(flex="0 1 85%"))
+    return HTML(value=value, layout=Layout(flex="0 1 85%"))
 
   @property
   def loading_widget(self) -> HTML:
@@ -84,23 +84,29 @@ class Templates:
               <h3 style="color: {Colors.peach2};">searching . . .</h3>
               <div class="loader"></div>
             """
-    return HTML(value=value,layout=Layout(flex="0 1 auto",align_self="center"))
+    return HTML(value=value,
+                layout=Layout(flex="0 1 auto", align_self="center"))
 
   @property
   def logo(self) -> HTML:
     value = """ <h1 class="logo">Yuno</h1> """
-    return HTML(value=value,layout=Layout(flex="0 1 auto",align_self="center"))
-
+    return HTML(value=value,
+                layout=Layout(flex="0 1 auto", align_self="center"))
 
   @property
   def search_btn(self) -> Button:
-    btn = Button(description="search", icon="search", layout=Layout(flex="1 1 15%"))
+    btn = Button(description="search",
+                 icon="search",
+                 layout=Layout(flex="1 1 15%"))
     btn.add_class("main-btn")
     return btn
 
   @property
   def info_btn(self) -> Button:
-    btn = Button(description="More Info", layout=Layout(flex="0 1 12%", align_self="center", margin="0 0 0 1%"))
+    btn = Button(description="More Info",
+                 layout=Layout(flex="0 1 12%",
+                               align_self="center",
+                               margin="0 0 0 1%"))
     btn.add_class("main-btn")
     return btn
 
@@ -119,8 +125,12 @@ class Templates:
   @property
   def curiosity_widget(self) -> IntSlider:
 
-    x = IntSlider(value=128,min=32,max=384,
-        step=8,description="Curiosity ",layout=Layout(flex="0 1 50%", align_self="center"))
+    x = IntSlider(value=128,
+                  min=32,
+                  max=384,
+                  step=8,
+                  description="Curiosity ",
+                  layout=Layout(flex="0 1 50%", align_self="center"))
     x.add_class("slider")
     x.style.handle_color = Colors.red
     return x

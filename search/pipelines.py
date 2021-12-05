@@ -19,7 +19,7 @@ class DefaultPipleline(SearchPipelineBase):
         NodeIdxr.new(search_base, config.nodeindexer_cfg),
         TagSimIdxr.new(search_base, config.tagsimindexer_cfg),
         AccIdxr.new(search_base, config.accindexer_cfg),
-        TopkIdxr.new(search_base,config.topkindexer_cfg)
+        TopkIdxr.new(search_base, config.topkindexer_cfg)
     ]
     return DefaultPipleline(search_base, query_processor_pipeline, knn_search,
                             indexer_pipeline)

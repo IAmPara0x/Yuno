@@ -4,8 +4,8 @@ from typing import List
 from abc import ABCMeta, abstractmethod
 from transformers import RobertaTokenizerFast, RobertaForMaskedLM, AdamW
 
-class FineTuningBase(metaclass=ABCMeta):
 
+class FineTuningBase(metaclass=ABCMeta):
   def __init__(self, modelObj, tokenizerObj, model_name):
     self.model = modelObj.from_pretrained(model_name)
     self.tokenizer = tokenizerObj.from_pretrained(model_name)
@@ -37,12 +37,11 @@ class FineTuningModel(FineTuningBase):
   DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
   LR = 1e-5
 
-  def mask_words(self, tokens:List[int]) -> List[List[int], List[int]]:
+  def mask_words(self, tokens: List[int]) -> List[List[int], List[int]]:
     """
       Mask random tokens for language modelling with probabilities as in BERT paper.
     """
-
-    def mask_token(data,token):
+    def mask_token(data, token):
       if token == self.pad_token_id:
         data[-1].append(-100)
         data[0].appned(token)
@@ -66,21 +65,19 @@ class FineTuningModel(FineTuningBase):
 
     return reduce(mask_token, tokens, [[], []])
 
-
   def _create_training_data(self, sents: List[List[str]]) -> List[str]:
-
-    def acc_sents(p_sents,sent):
+    def acc_sents(p_sents, sent):
       if random.random() < PROB_MERGE_SENTS:
         p_sents[-1] += " " + sent
       else:
         p_sents.append(sent)
       return p_sents
 
-    def merge(data,x):
+    def merge(data, x):
       data.extend(reduce(acc_sents, x[1:], [x[0]]))
       return data
 
-    input_sents = reduce(merge, sents,[])
+    input_sents = reduce(merge, sents, [])
 
     return input_sents
 

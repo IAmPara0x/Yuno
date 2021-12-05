@@ -74,7 +74,7 @@ class TopkIdxrCfg:
   tag_thres: float
 
 
-@dataclass(init=True,frozen=True)
+@dataclass(init=True, frozen=True)
 class Config:
   search_cfg: Optional[SearchCfg]
   accindexer_cfg: Optional[AccIdxrCfg]
@@ -90,14 +90,10 @@ def acc_sum(scores: np.ndarray) -> float:
 
 search_cfg = SearchCfg(1280, 128, 1.25)
 accindexer_cfg = AccIdxrCfg(acc_sum)
-tagsimindexer_cfg = TagSimIdxrCfg(True,False,3)
+tagsimindexer_cfg = TagSimIdxrCfg(True, False, 3)
 nodeindexer_cfg = NodeIdxrCfg(1.5, "cuda")
-topkindexer_cfg = TopkIdxrCfg(10,0.1)
+topkindexer_cfg = TopkIdxrCfg(10, 0.1)
 # contextidxr_cfg = ContextIdxrCfg(0.65, 0.7,"cuda")
 
-default_cfg = Config(search_cfg,
-                     accindexer_cfg,
-                     tagsimindexer_cfg,
-                     nodeindexer_cfg,
-                     topkindexer_cfg
-                     )
+default_cfg = Config(search_cfg, accindexer_cfg, tagsimindexer_cfg,
+                     nodeindexer_cfg, topkindexer_cfg)
