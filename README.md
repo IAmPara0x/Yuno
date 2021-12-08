@@ -1,5 +1,5 @@
 <h1 align="center" style="color: #916BBF;"><b>Yuno</b></h1>
-    
+
 
 
 
@@ -11,8 +11,9 @@ https://user-images.githubusercontent.com/67608276/144100319-4cb02dd8-f39d-4cbb-
 
 # Table of Contents
  1. [**Introduction**](#introduction)
- 2. [**Try Yuno**](#try-yuno) 
+ 2. [**Try Yuno**](#try-yuno)
  3. [**How Yuno was created?**](#Creation)
+ 4. [**References**](#References)
 
 
 # Introduction
@@ -22,9 +23,11 @@ Yuno is a context based search engine that indexes over 0.5 million anime review
 
 This search engine was created to solve the problem of finding an object with specific properties and the object in this case is anime. But this search engine can be easily extended to any domain like books,movies,etc. Without the need of any kind of handcrafted dataset.
 
+you can watch more about Yuno in this video more in this video: https://www.youtube.com/watch?v=w9NflYMPPtM
+
 <hr>
 
-## **Try Yuno <span style="font-size:small;">(Both notebooks has UI)</span>** 
+## **Try Yuno <span style="font-size:small;">(Both notebooks has UI)</span>**
 
 1. **[Kaggle Notebook](https://www.kaggle.com/iamparadox/yunoo)** (Recommended notebook)
 2. **[Colab Notebook](https://colab.research.google.com/drive/1WAewYgHDmDEWhPBBOvGgyLTiOaasVyOz?usp=sharing)**
@@ -40,3 +43,6 @@ Below are the few kaggle notebooks that you can look into to learn more about th
 
 2. [Yuno Models](https://www.kaggle.com/iamparadox/yuno-models)
     This notebook contains all the information about training Yuno with it's parameters.
+
+## **References**
+1. This [dataset](https://www.kaggle.com/marlesson/myanimelist-dataset-animes-profiles-reviews)  was used as initial starting point.
