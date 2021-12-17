@@ -30,9 +30,11 @@ you can watch more about Yuno in this video more in this video: https://www.yout
 
 ## Power of Yuno
 
-1. ![**anime where male MC turns into different species**](https://raw.githubusercontent.com/IAmPara0x/Yuno/main/docs/sample_videos/q1.gif)
+1. **anime where male MC turns into different species**
+   ![q1](https://github.com/IAmPara0x/Yuno/blob/main/docs/sample_videos/q1.gif)
 
-2. ![**romance anime with wholesome plot**](https://raw.githubusercontent.com/IAmPara0x/Yuno/main/docs/sample_videos/q2.gif)
+2. **romance anime with wholesome plot**
+   ![q2](https://github.com/IAmPara0x/Yuno/blob/main/docs/sample_videos/q2.gif)
 
 <hr>
 
