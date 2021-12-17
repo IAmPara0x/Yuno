@@ -30,11 +30,12 @@ you can watch more about Yuno in this video more in this video: https://www.yout
 
 ## Power of Yuno
 
-1. **anime where male MC turns into different species**
-   ![q1](https://github.com/IAmPara0x/Yuno/blob/main/docs/sample_videos/q1.gif)
-
-2. **romance anime with wholesome plot**
-   ![q2](https://github.com/IAmPara0x/Yuno/blob/main/docs/sample_videos/q2.gif)
+1. [**anime where male MC turns into different species**](https://www.youtube.com/watch?v=sKGJGtmo6zE)
+2. [**romance anime with wholesome plot**](https://www.youtube.com/watch?v=W9zntwi0e04)
+3. [**isekai anime with great worldbuilding**](https://www.youtube.com/watch?v=UmxqXqXcqlQ)
+4. [**anime with romance between teacher and student**](https://www.youtube.com/watch?v=WyPayms4m7I)
+5. [**masterpiece anime with amazing plot**](https://www.youtube.com/watch?v=iWaFQmBUs-M)
+6. [**anime with revenge plot**](https://www.youtube.com/watch?v=lOQxGQ_Stp0)
 
 <hr>
 
