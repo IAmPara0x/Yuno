@@ -34,15 +34,6 @@ you can watch more about Yuno in this video more in this video: https://www.yout
 
 2. ![**romance anime with wholesome plot**](https://raw.githubusercontent.com/IAmPara0x/Yuno/main/docs/sample_videos/q2.gif)
 
-3. ![**isekai anime with great worldbuilding**](https://raw.githubusercontent.com/IAmPara0x/Yuno/main/docs/sample_videos/q3.gif)
-
-4. ![**anime with romance between teacher and student**](https://raw.githubusercontent.com/IAmPara0x/Yuno/main/docs/sample_videos/q4.gif)
-
-5. ![**masterpiece anime with amazing plot**](https://raw.githubusercontent.com/IAmPara0x/Yuno/main/docs/sample_videos/q5.gif)
-
-6. ![**anime with revenge plot**](https://raw.githubusercontent.com/IAmPara0x/Yuno/main/docs/sample_videos/q6.gif)
-
-
 <hr>
 
 ## **Try Yuno <span style="font-size:small;">(Both notebooks has UI)</span>**
