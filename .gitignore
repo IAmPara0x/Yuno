@@ -3,3 +3,4 @@ data/
 .mypy_cache/
 test.py
 *.ipynb
+proxy-list.txt
