@@ -26,6 +26,7 @@ class AnimeCrawler(scrapy.Spider):
       yield scrapy.Request(
           f"https://myanimelist.net/topanime.php?limit={k}",
           callback=self.parse,
+          meta={"dont_use_proxy": True}
       )
 
   def parse(self, response):

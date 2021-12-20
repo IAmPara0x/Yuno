@@ -1,164 +1,116 @@
-# Define here the models for your spider middleware
-#
-# See documentation in:
-# https://docs.scrapy.org/en/latest/topics/spider-middleware.html
-
-from scrapy import signals
-
-# useful for handling different item types with a single interface
 import logging
-from itemadapter import is_item, ItemAdapter
-from cytoolz.curried import compose, filter, map
+from scrapy import signals
 from twisted.internet import task
 
 from .proxy_heuristic import ProxyPool, ProxyType
 
+
 logger = logging.getLogger(__name__)
 
-class CrawlerSpiderMiddleware:
-  # Not all methods need to be defined. If a method is not defined,
-  # scrapy acts as if the spider middleware does not modify the
-  # passed objects.
+
+class RotatingProxies(object):
+
+  def __init__(self, proxies: ProxyPool,
+               max_proxies_try: int,
+               logstats_interval: float
+               ):
+
+    self.proxies: ProxyPool = proxies
+    self.max_proxies_try:int = max_proxies_try
+    self.logstats_interval: float = logstats_interval
 
   @classmethod
-  def from_crawler(cls, crawler):
-    # This method is used by Scrapy to create your spiders.
-    s = cls()
-    crawler.signals.connect(s.spider_opened, signal=signals.spider_opened)
-    return s
+  def from_crawler(cls, crawler) -> "RotatingProxies":
+    s = crawler.settings
+    proxies = ProxyPool(s.get("use_cached_proxy"),
+                        s.get("proxy_file_path"),
+                        s.getfloat("PROB_TRY_DEAD_PROXY", 0.15)
+                        )
 
-  def process_spider_input(self, response, spider):
-    # Called for each response that goes through the spider
-    # middleware and into the spider.
+    rot_proxies = cls(proxies,
+                      s.getfloat("ROTATING_PROXY_STATS_INTERVAL", 30),
+                      s.getint("MAX_PROXIES_TRY", 6)
+                      )
 
-    # Should return None or raise an exception.
-    return None
-
-  def process_spider_output(self, response, result, spider):
-    # Called with the results returned from the Spider, after
-    # it has processed the response.
-
-    # Must return an iterable of Request, or item objects.
-    for i in result:
-      yield i
-
-  def process_spider_exception(self, response, exception, spider):
-    # Called when a spider or process_spider_input() method
-    # (from other spider middleware) raises an exception.
-
-    # Should return either None or an iterable of Request or item objects.
-    pass
-
-  def process_start_requests(self, start_requests, spider):
-    # Called with the start requests of the spider, and works
-    # similarly to the process_spider_output() method, except
-    # that it doesn’t have a response associated.
-
-    # Must return only requests (not items).
-    for r in start_requests:
-      yield r
-
-  def spider_opened(self, spider):
-    spider.logger.info('Spider opened: %s' % spider.name)
-
-
-class RotatingProxies:
-  # Not all methods need to be defined. If a method is not defined,
-  # scrapy acts as if the downloader middleware does not modify the
-  # passed objects.
-
-  def __init__(self, proxy_file_path=""):
-    self.proxies = ProxyPool("proxy-list.txt")
-    self.max_proxies_try = len(self.proxies.pool)//4
-    self.logstats_interval = 30
-    self.total_proxies = len(self.proxies.pool)
-
-  @classmethod
-  def from_crawler(cls, crawler):
-    # This method is used by Scrapy to create your spiders.
-    s = cls()
-    crawler.signals.connect(s.spider_opened, signal=signals.spider_opened)
-
-    settings = crawler.settings
-
-    rotating_proxies = cls(proxy_file_path=settings.get("proxy_file_path"))
-    crawler.signals.connect(rotating_proxies.engine_started,
+    crawler.signals.connect(rot_proxies.engine_started,
                             signal=signals.engine_started
                             )
-    return rotating_proxies
+
+    crawler.signals.connect(proxies.dump_proxy,
+                            signal=signals.spider_closed
+                            )
+
+    return rot_proxies
 
   def engine_started(self):
     self.log_task = task.LoopingCall(self.log_stats)
     self.log_task.start(self.logstats_interval, now=True)
 
   def process_request(self, request, spider):
-    # Called for each request that goes through the downloader
-    # middleware.
 
-    # Must either:
-    # - return None: continue processing this request
-    # - or return a Response object
-    # - or return a Request object
-    # - or raise IgnoreRequest: process_exception() methods of
-    #   installed downloader middleware will be called
+    proxy = self.proxies.get_proxy()
     request.meta["download_timeout"] = 5
     if "dont_use_proxy" not in request.meta:
-      proxy = self.proxies.get_proxy()
-      logger.debug(f"{proxy}\n{'='*25}")
-      request.meta["proxy"] = proxy.url
-
-    return None
+      request.meta["proxy"] = proxy.addr
+    else:
+      print(f"{'='*25}\nusing default IP\n{'='*25}")
 
   def process_response(self, request, response, spider):
 
-    print(f"{'='*25}\nRESPONSE: {response.status}, URL: {response.url}\n{'='*25}")
-
-    if response.status == 200:
-      self.proxies.change_status(ProxyType.working)
-      return response
-    elif response.status == 403:
-      logger.debug(f"RESPONSE: {response.status}, URL: {response.url}")
-      self.proxies.change_status(ProxyType.cooldown)
-      return self._retry(request, spider)
-    else:
-      logger.debug(f"RESPONSE: {response.status}, URL: {response.url}")
-      self.proxies.change_status(ProxyType.dead)
-      return self._retry(request, spider)
-
-  def _retry(self, request, spider):
-    print(f"{'='*25}\nRETRYING {request.url}\n{'='*25}")
-
     if "dont_use_proxy" not in request.meta:
 
-      retries = request.meta.get('proxy_retry_times', 0) + 1
-      max_proxies_try = request.meta.get('max_proxies_try',
-                                            self.max_proxies_try)
-      retryreq = request.copy()
-      retryreq.meta['proxy_retry_times'] = retries
-      retryreq.dont_filter = True
+      print(f"{'='*25}\nproxy : {request.meta['proxy']} \
+                        status : {response.status} \
+                        url : {response.url} \
+            \n{'='*25}")
 
-      if retries <= max_proxies_try:
-        return retryreq
+      addr: str = request.meta["proxy"]
+
+      if response.status == 200:
+        self.proxies.set_status(addr, ProxyType.working)
+        return response
+
+      elif response.status == 403:
+        self.proxies.set_status(addr, ProxyType.cooldown)
+        return self._retry(request, spider)
+
       else:
-        del retryreq.meta["proxy"]
-        retryreq.meta["dont_use_proxy"] = True
-        print(f"{'='*25}\nUSING DEFAULT IP\n{'='*25}")
-        return retryreq
+        self.proxies.set_status(addr, ProxyType.dead)
+        return self._retry(request, spider)
+
+    else:
+      return response
 
   def process_exception(self, request, exception, spider):
-    logger.warn(f"EXCEPTION: {exception}\n{'='*25}")
+
+    print(f"{'='*25}\nEXCEPTION : {exception} url : {request.url} \n{'='*25}")
 
     if "dont_use_proxy" not in request.meta:
-      self.proxies.change_status(ProxyType.dead)
+      addr = request.meta["proxy"]
+      self.proxies.set_status(addr,ProxyType.dead)
       return self._retry(request, spider)
 
-  def spider_opened(self, spider):
-    spider.logger.info('Spider opened: %s' % spider.name)
+  def _retry(self, request, _):
+    print(f"{'='*25}\nRETRYING {request.url}\n{'='*25}")
+
+    retries = request.meta.get('proxy_retry_times', 1)
+    retryreq = request.copy()
+    retryreq.dont_filter = True
+
+    if retries <= self.max_proxies_try:
+      retryreq.meta['proxy_retry_times'] = retries + 1
+      return retryreq
+
+    else:
+      del retryreq.meta["proxy"]
+      retryreq.meta["dont_use_proxy"] = True
+      return retryreq
 
   def log_stats(self):
-    working = compose(len, list, filter)(lambda x: x.status == ProxyType.working, self.proxies.pool)
-    cooldown = compose(len, list, filter)(lambda x: x.status == ProxyType.cooldown, self.proxies.pool)
-    dead = self.total_proxies - (working + cooldown)
 
-    logger.warn(f"TOTAL PROXIES: {self.total_proxies},\
-        WORKING: {working}, COOLDOWN: {cooldown}, DEAD: {dead}")
+    print(f"{'='*25}\n PROXY STATS: TOTAL({self.proxies.total_proxies}), \
+            WORKING({self.proxies.pool_status['working']}), \
+            COOLDOWN({self.proxies.pool_status['cooldown']}), \
+            DEAD({self.proxies.pool_status['dead']}) \
+           \n{'='*25}")
+

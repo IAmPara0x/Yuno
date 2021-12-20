@@ -7,22 +7,12 @@
 import json
 import os
 import numpy as np
-from functools import singledispatch, update_wrapper
 from pymongo import MongoClient
 import pickle
 
 from crawler.items import AnimeItem, ReviewItem
+from .utils import singledispatchmethod
 
-
-def singledispatchmethod(func):
-  dispatcher = singledispatch(func)
-
-  def wrapper(*args, **kw):
-    return dispatcher.dispatch(args[1].__class__)(*args, **kw)
-
-  wrapper.register = dispatcher.register
-  update_wrapper(wrapper, func)
-  return wrapper
 
 class ProcessPipeline:
 
@@ -35,12 +25,12 @@ class ProcessPipeline:
 
   @_process_item_dispatcher.register(AnimeItem)
   def process_anime(self, item: AnimeItem) -> AnimeItem:
-    if 'N/A' in item['score']:
+    if item['score'] is None:
       item['score'] = np.nan
     else:
       item['score'] = float(item['score'].replace("\n", "").strip())
 
-    if item['rank'] == 'N/A':
+    if item['rank'] == None:
       item['rank'] = np.nan
     else:
       item['rank']     = int(item['rank'].replace("#", "").strip())
