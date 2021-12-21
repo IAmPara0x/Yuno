@@ -4,6 +4,7 @@ import json
 import pickle
 import sys
 import scrapy
+import re
 
 from cytoolz.curried import (
     compose,
@@ -12,13 +13,14 @@ from cytoolz.curried import (
     reduce,
 )
 
-from .selectors import Selectors as Sels
+from crawler.utils import AnimeSelectors as ASels
 from crawler.items import AnimeItem
 
 
 class AnimeCrawler(scrapy.Spider):
   name: str = "anime-crawler"
   allowed_domains: List[str] = ["myanimelist.net"]
+  anime_urlre: re.Pattern = re.compile("https://myanimelist.net/anime/\d+/")
 
   def start_requests(self):
 
@@ -26,16 +28,14 @@ class AnimeCrawler(scrapy.Spider):
       yield scrapy.Request(
           f"https://myanimelist.net/topanime.php?limit={k}",
           callback=self.parse,
-          meta={"dont_use_proxy": True}
-      )
+          meta={"dont_use_proxy": True})
 
   def parse(self, response):
     try:
-      urls = compose(
-          filter(lambda x: x.startswith("https://myanimelist.net/anime")),
-          filter(lambda x: not x.endswith("/video")), set,
-          Sels.topk_anime_urls_sel)(
-              response)
+      urls = compose(set,
+                     map(lambda url: self.anime_urlre.search(url).group(0)),
+                     ASels.topk_anime_urls_sel)(response)
+
       for url in urls:
         yield scrapy.Request(url, callback=self.parse_anime)
 
@@ -46,25 +46,15 @@ class AnimeCrawler(scrapy.Spider):
 
   def parse_anime(self, response):
     attr = {}
-    attr["uid"] = Sels.extract_anime_uid(response)
-    attr["title"] = Sels.anime_title_sel(response)
-    attr["synopsis"] = Sels.anime_synopsis_sel(response)
+    attr["uid"] = ASels.extract_anime_uid(response)
+    attr["title"] = ASels.anime_title_sel(response)
+    attr["synopsis"] = ASels.anime_synopsis_sel(response)
     attr["link"] = response.url
-    attr["score"] = Sels.anime_score_sel(response)
-    attr["rank"] = Sels.anime_rank_sel(response)
-    attr["popularity"] = Sels.anime_popularity_sel(response)
-    attr["genres"] = Sels.anime_genres_sel(response)
+    attr["score"] = ASels.anime_score_sel(response)
+    attr["rank"] = ASels.anime_rank_sel(response)
+    attr["popularity"] = ASels.anime_popularity_sel(response)
+    attr["genres"] = ASels.anime_genres_sel(response)
 
     yield AnimeItem(**attr)
 
 
-class IndexCrawler(scrapy.Spider):
-  name: str = "index-crawler"
-  allowed_domains: List[str] = ["myanimelist.net"]
-  pass
-
-def print_formatted_text(text: str) -> None:
-  border = "=" * 25
-  print(border)
-  print(text)
-  print(border)

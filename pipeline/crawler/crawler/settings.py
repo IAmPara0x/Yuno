@@ -67,7 +67,7 @@ DOWNLOADER_MIDDLEWARES = {
     'scrapy.downloadermiddlewares.httpproxy.HttpProxyMiddleware': 110,
     'scrapy_fake_useragent.middleware.RandomUserAgentMiddleware': 400,
     'scrapy_fake_useragent.middleware.RetryUserAgentMiddleware': 401,
-    'crawler.middlewares.RotatingProxies':610
+    'crawler.middlewares.RotatingProxies': 610
 }
 
 # Enable or disable extensions
@@ -79,8 +79,8 @@ DOWNLOADER_MIDDLEWARES = {
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
-  'crawler.pipelines.ProcessPipeline': 300,
-  'crawler.pipelines.SaveMongoPipeline': 302,
+    'crawler.pipelines.ProcessPipeline': 300,
+    'crawler.pipelines.SaveMongoPipeline': 302,
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)

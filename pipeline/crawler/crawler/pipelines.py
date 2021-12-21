@@ -33,7 +33,7 @@ class ProcessPipeline:
     if item['rank'] == None:
       item['rank'] = np.nan
     else:
-      item['rank']     = int(item['rank'].replace("#", "").strip())
+      item['rank'] = int(item['rank'].replace("#", "").strip())
 
     item['popularity'] = int(item['popularity'].replace("#", "").strip())
     item['uid'] = int(item['uid'])
@@ -41,12 +41,14 @@ class ProcessPipeline:
     return item
 
   @_process_item_dispatcher.register(ReviewItem)
-  def process_review(item: ReviewItem) -> ReviewItem:
-    pass
+  def process_review(self, item: ReviewItem) -> ReviewItem:
+    return item
+
 
 
 class SaveMongoPipeline(object):
-  def __init__(self, mongodb_url = ""):
+
+  def __init__(self, mongodb_url):
     self.mongodb_url = mongodb_url
 
   @classmethod
@@ -60,10 +62,11 @@ class SaveMongoPipeline(object):
 
   def open_spider(self, spider) -> None:
     if self.is_configured:
-      self.client  = MongoClient(self.mongodb_url)
-      self.db      = self.client['yuno']
+      self.client = MongoClient(self.mongodb_url)
+      self.db = self.client['yuno']
       self.collection = {}
-      self.collection['AnimeItem']   = self.db.animes
+      self.collection['animes'] = self.db.animes
+      self.collection['reviews'] = self.db.reviews
     else:
       raise Exception("MONGODB_URL not provided.")
 
@@ -79,5 +82,11 @@ class SaveMongoPipeline(object):
     raise NotImplemented
 
   @save_item_dispatcher.register(AnimeItem)
-  def save_item_dispatcher(self, item: AnimeItem) -> None:
-    self.collection["AnimeItem"].replace_one({"uid": dict(item)["uid"]}, dict(item), upsert=True)
+  def _save_anime(self, item: AnimeItem) -> None:
+    item = dict(item)
+    self.collection["animes"].replace_one({"uid": item["uid"]}, item, upsert=True)
+
+  @save_item_dispatcher.register(ReviewItem)
+  def _save_review(self, item: ReviewItem) -> None:
+    item = dict(item)
+    self.collection["reviews"].replace_one({"uid": item["uid"]}, item, upsert=True)

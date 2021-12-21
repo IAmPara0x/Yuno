@@ -6,10 +6,11 @@ import random
 import math
 import pickle
 import pathlib
-from cytoolz.curried import (filter,
-                             first,
-                             compose,
-                             )
+from cytoolz.curried import (
+    filter,
+    first,
+    compose,
+)
 
 FILEPATH = pathlib.Path(__file__).parent.parent.resolve()
 
@@ -22,6 +23,7 @@ class ProxyType(Enum):
 
 @total_ordering
 class Proxy:
+
   def __init__(self, addr):
     self.status: ProxyType = ProxyType.working
     self.time: float = math.inf
@@ -59,39 +61,41 @@ class Proxy:
 
 
 class ProxyPool():
-  def __init__(self, use_cached_proxy:str , proxy_file_path: str, prob_try_dead_proxy: float):
+
+  def __init__(self, use_cached_proxy: str, proxy_file_path: str,
+               prob_try_dead_proxy: float):
 
     if use_cached_proxy == "True":
-      with open(f"{FILEPATH}/proxy-list-state.pkl", "rb") as f:
-        self.pool: List[Proxy]= pickle.load(f)
+      with open(f"{FILEPATH}/data/proxy-list-state.pkl", "rb") as f:
+        self.pool: List[Proxy] = pickle.load(f)
     else:
       with open(proxy_file_path, "r") as f:
         proxies = [line[:-1] for line in f.readlines()]
         self.pool = [Proxy(proxy) for proxy in proxies]
 
-    counter = lambda type: compose(len,
-                                   list,
-                                   filter
-                                   )(lambda x: x.status == type, self.pool)
+    counter = lambda type: compose(len, list, filter)(lambda x: x.status ==
+                                                      type, self.pool)
 
     self.total_proxies = len(self.pool)
 
-    self.pool_status = {"working": counter(ProxyType.working),
-                        "cooldown": counter(ProxyType.cooldown),
-                        "dead": counter(ProxyType.dead)
-                        }
+    self.pool_status = {
+        "working": counter(ProxyType.working),
+        "cooldown": counter(ProxyType.cooldown),
+        "dead": counter(ProxyType.dead)
+    }
     self.prob_try_dead_proxy = prob_try_dead_proxy
 
   def get_proxy(self) -> Proxy:
     self.pool = sorted(self.pool, reverse=True)
 
-    sample_size =self.pool_status["working"]
+    sample_size = self.pool_status["working"]
 
     if sample_size == 0:
       proxy = random.choice(self.pool)
     else:
       if self.pool[0] != math.inf:
-        if random.random() < self.prob_try_dead_proxy and (self.total_proxies != sample_size):
+        if random.random() < self.prob_try_dead_proxy and (self.total_proxies !=
+                                                           sample_size):
           proxy = random.choice(self.pool[sample_size:])
         else:
           proxy = random.choice(self.pool[:sample_size])
@@ -108,5 +112,5 @@ class ProxyPool():
     self.pool = sorted(self.pool, reverse=True)
 
   def dump_proxy(self) -> None:
-    with open("proxy-list-state.pkl", "wb") as f:
+    with open(f"{FILEPATH}/data/proxy-list-state.pkl", "wb") as f:
       pickle.dump(self.pool, f)
