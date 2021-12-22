@@ -35,14 +35,9 @@ class ReviewItem(scrapy.Item):
   helpful: int                 = scrapy.Field()
 
 
-class RecsItem(scrapy.Item):
-  uid1: AnimeUid    = scrapy.Field()
-  uid2: AnimeUid    = scrapy.Field()
+class RecItem(scrapy.Item):
+  anime_uid1: AnimeUid    = scrapy.Field()
+  anime_uid2: AnimeUid    = scrapy.Field()
   texts: List[str]  = scrapy.Field()
   link: str         = scrapy.Field()
 
-
-@dataclass(init=True,frozen=True)
-class ReviewCache:
-  anime_uid: AnimeUid
-  review_uids: List[ReviewUid]

@@ -1,0 +1,3 @@
+
+### TODOS
+  - [ ] improve bash scripts
