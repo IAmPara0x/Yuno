@@ -3,4 +3,6 @@ data/
 .mypy_cache/
 test.py
 *.ipynb
-proxy-list.txt
+*.pkl
+./pipeline/crawler/data
+play/

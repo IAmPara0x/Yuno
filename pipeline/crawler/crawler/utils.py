@@ -1,10 +1,12 @@
-from typing import Callable, List, NewType, Optional, Dict, Tuple
+from typing import List, NewType, Optional, Dict, Tuple
 from functools import singledispatch, update_wrapper
 import re
 from cytoolz.curried import curry,map,filter,compose
 
 from scrapy.http.response.html import HtmlResponse
 from scrapy.selector.unified import SelectorList, Selector
+
+from crawler.items import AnimeInfoItem, TagItem
 
 Response = NewType("Response", HtmlResponse)
 
@@ -171,3 +173,57 @@ class TextFilters:
         )(texts)
 
     return texts
+
+class AnimeInfoSelector:
+  query: str = '''
+                query ($id: Int) {
+                  Media (idMal: $id, type: ANIME) {
+                    id
+                    idMal
+                    title {
+                      romaji
+                      english }
+                    description
+                    coverImage{
+                      large }
+                    synonyms
+                    siteUrl
+                    tags{
+                      id
+                      name
+                      description
+                      category
+                      rank }
+                    characters(role: MAIN) {
+                     nodes{
+                       name {
+                        first
+                        last
+                        full
+                        alternative }
+                       gender } } } }
+                '''
+
+  def animeinfo_sel(body: Dict) -> AnimeInfoItem:
+    attr = {}
+    attr["uidMal"]      = body["idMal"]
+    attr["uidAnilist"]         = body["id"]
+    attr["title"]       = body["title"]
+    attr["synonyms"]    = body["synonyms"]
+    attr["description"] = body["description"]
+    attr["img_url"]     = body["coverImage"]["large"]
+    attr["characters"]  = body["characters"]["nodes"]
+    attr["tags"]        = [(tag["id"],tag["rank"]) for tag in body["tags"]]
+    return AnimeInfoItem(**attr)
+
+  def tags_sel(body: Dict) -> List[TagItem]:
+    tag_items = []
+
+    for tag in body["tags"]:
+      attr = {}
+      attr["uid"]         = tag["id"]
+      attr["name"]        = tag["name"]
+      attr["description"] = tag["description"]
+      attr["category"]    = tag["category"]
+      tag_items.append(TagItem(**attr))
+    return tag_items

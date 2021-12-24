@@ -39,7 +39,7 @@ USER_AGENT = 'YunoGasai'
 
 ROTATING_PROXY_STATS_INTERVAL = 30
 MAX_PROXIES_TRY = 8
-PROB_TRY_DEAD_PROXY = 0.15
+PROB_TRY_DEAD_PROXY = 0.25
 
 # Disable cookies (enabled by default)
 #COOKIES_ENABLED = False

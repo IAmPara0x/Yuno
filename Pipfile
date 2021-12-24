@@ -9,6 +9,7 @@ returns = "==0.17.0"
 transformers = "==4.6.1"
 faiss-cpu = "==1.7.1"
 pyfunctional = "==1.4.3"
+sklearn = "*"
 
 [dev-packages]
 Scrapy = "==2.5.1"
