@@ -73,10 +73,11 @@ class FilterText:
 
   @staticmethod
   def filter_special_chars(_, texts: List[str]) -> List[str]:
-    special_chars_re = re.compile(r"[^a-zA-Z0-9\.\,\?\'\"]+")
+    special_chars_re = re.compile(r"[^a-zA-Z0-9\.\,\?\'\"\[\]]+")
     cont_ws_re = re.compile(r"\s+")
+    non_ascii_re = re.compile(r"[^\x00-\x7F]+")
 
-    texts = compose(list,map(lambda text: text.replace(/[^\x00-\x7F]/g, "")),
+    texts = compose(list,map(lambda text: re.sub(non_ascii_re, "", text)),
                     map(lambda text: re.sub(cont_ws_re, " ", text)),
                     map(lambda text: re.sub(special_chars_re, " ", text))
                     )(texts)
