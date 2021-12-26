@@ -24,7 +24,7 @@ CONCURRENT_REQUESTS = 16
 # Configure a delay for requests for the same website (default: 0)
 # See https://docs.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-DOWNLOAD_DELAY = 45 / 60.0
+DOWNLOAD_DELAY = 35 / 60.0
 # The download delay setting will honor only one of:
 
 CONCURRENT_REQUESTS_PER_DOMAIN = 16
@@ -40,7 +40,6 @@ USER_AGENT = 'YunoGasai'
 ROTATING_PROXY_STATS_INTERVAL = 30
 MAX_PROXIES_TRY = 8
 PROB_TRY_DEAD_PROXY = 0.25
-
 # Disable cookies (enabled by default)
 #COOKIES_ENABLED = False
 

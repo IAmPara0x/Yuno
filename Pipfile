@@ -5,20 +5,29 @@ name = "pypi"
 
 [packages]
 cytoolz = "==0.11.2"
-returns = "==0.17.0"
 transformers = "==4.6.1"
 faiss-cpu = "==1.7.1"
-pyfunctional = "==1.4.3"
-sklearn = "*"
+numpy = "==1.21.5"
+torch = "==1.9.1"
 
 [dev-packages]
+
+# Utility packages
+mypy = "==0.920"
+ipython = "*"
+yapf = "*"
+
+# helper packages
+pyaml = "*"
+
+# Scaping packages
 Scrapy = "==2.5.1"
 pymongo = "==4.0.1"
-ipython = "*"
 proxybroker = "==0.3.2"
-mypy = "==0.920"
 scrapy-fake-useragent = "*"
-yapf = "*"
+
+# NLP packages
+sklearn = "*"
 
 [requires]
 python_version = "3.9"

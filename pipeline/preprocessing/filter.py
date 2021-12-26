@@ -1,6 +1,6 @@
 import re
 from typing import List, NamedTuple, Callable
-from cytoolz.curried import reduce, compose
+from cytoolz.curried import reduce, compose, map
 from enum import Enum
 import inspect
 
@@ -38,7 +38,7 @@ class FilterText:
     custom filters can be added using 'add_filter' method that replace desired text with
     desired special token.
   """
-  _filter_names = ["filter_anime_names", "filter_character_names"]
+  _filter_names = ["filter_anime_names", "filter_character_names", "filter_special_chars"]
 
   def __init__(self, anime_infos: List[AnimeInfo]):
     self.anime_infos = {
@@ -70,6 +70,18 @@ class FilterText:
       return names_filter(chars[1:], sub_char_name(chars[0], texts))
 
     return names_filter(characters, texts)
+
+  @staticmethod
+  def filter_special_chars(_, texts: List[str]) -> List[str]:
+    special_chars_re = re.compile(r"[^a-zA-Z0-9\.\,\?\'\"]+")
+    cont_ws_re = re.compile(r"\s+")
+
+    texts = compose(list,map(lambda text: text.replace(/[^\x00-\x7F]/g, "")),
+                    map(lambda text: re.sub(cont_ws_re, " ", text)),
+                    map(lambda text: re.sub(special_chars_re, " ", text))
+                    )(texts)
+    return texts
+
 
   @classmethod
   def add_filter(cls, name: str, func: Callable[[AnimeInfo, List[str]],

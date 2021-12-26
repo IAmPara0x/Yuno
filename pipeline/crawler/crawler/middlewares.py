@@ -58,7 +58,7 @@ class RotatingProxies(object):
 
       addr: str = request.meta["proxy"]
 
-      if response.status == 200:
+      if response.status == 200 or response.status == 404:
         self.proxies.set_status(addr, ProxyType.working)
         return response
 
