@@ -48,10 +48,12 @@ class FilterText:
 
   @staticmethod
   def filter_anime_names(anime_info: AnimeInfo, texts: List[str]) -> List[str]:
-    anime_names = r"\b|\b".join([re.escape(name) for name in anime_info.names])
-    regexp = lambda text: re.sub(rf"(?i){anime_names}",
-                                 f"{SpecialToken.anime_name_token}", text)
-    return compose(list, map)(regexp, texts)
+    if len(anime_info.names):
+      anime_names = r"\b|\b".join([re.escape(name) for name in anime_info.names])
+      regexp = lambda text: re.sub(rf"(?i){anime_names}",
+                                   f"{SpecialToken.anime_name_token}", text)
+      return compose(list, map)(regexp, texts)
+    return texts
 
   @staticmethod
   def filter_character_names(anime_info: AnimeInfo,
@@ -59,11 +61,15 @@ class FilterText:
     characters = anime_info.characters
 
     def sub_char_name(char, texts):
-      char_names = r"\b|\b".join([re.escape(name) for name in char.names])
-      return [
+      if len(char.names):
+        char_names = r"\b|\b".join([re.escape(name) for name in char.names])
+        return [
           re.sub(rf"(?i){char_names}", f"{char.gender.value}", text)
           for text in texts
-      ]
+        ]
+      else:
+        return texts
+
 
     def names_filter(chars, texts):
       if not chars: return texts
@@ -73,7 +79,7 @@ class FilterText:
 
   @staticmethod
   def filter_special_chars(_, texts: List[str]) -> List[str]:
-    special_chars_re = re.compile(r"[^a-zA-Z0-9\.\,\?\'\"\[\]]+")
+    special_chars_re = re.compile(r"[^a-zA-Z0-9\.\,\?\'\"\[\]\_]+")
     cont_ws_re = re.compile(r"\s+")
     non_ascii_re = re.compile(r"[^\x00-\x7F]+")
 
