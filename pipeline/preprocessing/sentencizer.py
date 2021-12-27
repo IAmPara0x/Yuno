@@ -1,24 +1,28 @@
 from typing import Any, Callable, List
 from dataclasses import dataclass
 from itertools import zip_longest
-from cytoolz.curried import reduce
+from cytoolz.curried import reduce, compose, map, concat
 import torch
 
 Tensor = torch.Tensor
+
+
+@dataclass(init=True)
+class SentencizerConfig:
+  tolerance: float
+  threshold: Callable[[Tensor], float]
+  terminate: Callable[[Tensor], bool]
+  batch_size: int
+  max_sent_length: int
+  tol_sent_len: int
+
 
 @dataclass(init=True)
 class SentencizerBase:
   nlp: Callable[[str], List[str]]
   model: Callable[[List[str]], Tensor]
-  config: Config
-
-@dataclass(init=True)
-class Config:
-  tolerance: float
-  threshold: Callable[[Tensor], float]
-  terminate: Callable[[Tensor], bool]
-  batch_size: int
-  max_sent_lenght: int
+  cfg: SentencizerConfig
+  l2_approx: Callable[[Tensor,Tensor,Tensor],Tensor]
 
 
 @dataclass(init=True)
@@ -31,54 +35,52 @@ class Sentencizer(SentencizerBase):
       data[1].append(data[-1]+len(sents))
       return data
 
-    b_sents,b_sents_idx = self.create_sents(texts)
+    b_sents,bs_len = self.create_sents(texts)
     all_sents, pos_idxs = reduce(acc, b_sents, [[],[0]])
     all_embds = self.model(all_sents)
     batch_texts = self.filter_texts(all_sents, all_embds, pos_idxs)
 
     new_texts = []
 
-    for idx in range(len(texts)):
-      new_texts.append(batch_texts.pop(0))
-      b_sents_idx.pop(0)
-
-      while b_sents_idx[0] == idx:
-        new_texts[-1] += " " + batch_texts.pop(0)
-        b_sents_idx.pop(0)
+    # IMPROVE: replace the loop
+    for b_len in bs_len:
+      new_texts.append(" ".join(batch_texts[:b_len]))
+      del batch_texts[:b_len]
 
     return new_texts
 
   def create_sents(self, texts: List[str]):
 
-    def group_sents(sents):
-      grp_sents = []
-      curr_sent = []
-      curr_sent_len = 0
+    def acc_sents(text: str):
+      sents = self.group_sents([sent.text for sent in self.nlp(text).sents])
+      return sents
 
-      for sent in sents:
-        sent_len = len(sent.split())
-        self.curr_sent_len += sent_len
-        if self.curr_sent_len >= self.max_sent_lenght:
-          grp_sents.append(curr_sent)
-          curr_sent = [sent]
-          curr_sent_len = sent_len
-        else:
-          curr_sent.appned(sent)
+    bs = compose(list,map(acc_sents))(texts)
+    bs_len = compose(list,map(len))(bs)
+    return concat(bs),bs_len
 
-      if len(grp_sents) > 1 and curr_sent_len < 64:
-        grp_sents[-2].extend(grp_sents.pop())
+  def group_sents(self, sents: List[str]) -> List[List[str]]:
 
-      return grp_sents
+    def acc(data,input_data):
+      idx,sent_len = input_data
+      curr_sent_len = torch.sum(sents_len[data[-1]])
 
-    batch_sents_idx = []
-    batch_sents = []
+      if (curr_sent_len + sent_len) >= self.cfg.max_sent_length:
+        data.append([idx])
+      else:
+        data[-1].append(idx)
+      return data
 
-    for idx, text in enumerate(texts):
-      sents = group_sents([sent.text for sent in self.nlp(text)])
-      batch_sents.extend(sents)
-      batch_sents_idx.extend([idx]*len(sents))
+    sents_len = compose(torch.tensor,map)(lambda x: len(x.split()),sents)
+    b_idxs = reduce(acc,enumerate(sents_len[1:],start=1),[[0]])
 
-    return batch_sents, batch_sents_idx
+    if (len(b_idxs) > 1 and
+        torch.sum(sents_len[b_idxs[-1]]) <= self.cfg.tol_sent_len):
+      b_idxs[-2].extend(b_idx.pop(-1))
+
+    batch_sents = compose(list,map(lambda s: [sents[i] for i in s]))(b_idxs)
+
+    return batch_sents
 
   def filter_texts(self, all_sents: List[str],
                    all_embds: Tensor, pos_idxs: List[int]
@@ -86,8 +88,8 @@ class Sentencizer(SentencizerBase):
 
     def acc_text(n_texts, idxs):
       s_idx,e_idx = idxs
-      n_text = self.filter_text(all_sents[s_idx:e_idx],
-                                all_embds[s_idx:e_idx])
+      sents,embds = all_sents[s_idx:e_idx], all_embds[s_idx:e_idx]
+      n_text = self.filter_text(sents)
       n_texts.append(n_text)
       return n_texts
 
@@ -98,7 +100,7 @@ class Sentencizer(SentencizerBase):
     q, qe = sents[0], embds[0]
     sents, sents_e = sents[1:], embds[1:]
 
-    contrib = l2_approx(qe,sents_e.T, sents_e)
+    contrib = self.l2_approx(qe,sents_e.T, sents_e)
     neg_idxs = torch.where(contrib < 0)[0].tolist()
     filtered_sents = [sent for idx, sent in enumerate(sents)
                       if idx not in neg_idxs]
