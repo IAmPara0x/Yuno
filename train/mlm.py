@@ -30,21 +30,24 @@ class MLM:
 
       if token in self.special_token_ids:
         labels.append(-100)
+        return labels
 
       prob = torch.rand(1).item()
 
       if prob <= 0.15:
         prob /= 0.15
+        labels.append(token.item())
+
         if prob < 0.8:
           tokens[idx] = self.mask_token_id
         elif prob < 0.9:
           tokens[idx] = torch.randint(0,self.vocab_len,(1,)).item()
-        labels.append(token)
+
       else:
         labels.append(-100)
       return labels
 
-    labels = compose(torch.tensor,reduce(mask, tokens))([])
+    labels = compose(torch.tensor)(reduce(mask, enumerate(tokens),[]))
     return (tokens,labels)
 
   def train(self, sents: List[str]):
@@ -63,7 +66,7 @@ class MLM:
       if step == self.total_steps:
         break
       else:
-        idxs = torch.rand(0,input.shape[0], (self.batch_size,))
+        idxs = torch.randint(0,input.shape[0], (self.batch_size,))
         x, y = input[idxs].to(self.device), labels[idxs].to(self.device)
         outputs = self.model(x)
         loss = F.cross_entropy(outputs.logits.view(-1, self.vocab_len), y.view(-1))
@@ -77,7 +80,8 @@ class MLM:
           optim.zero_grad()
           avg_loss.append(sum(acc_loss))
           acc_loss = []
-          tbar.step()
+          tbar.update(1)
+
 
   def eval(self, sents: List[str], eval_steps: int):
 
@@ -88,7 +92,7 @@ class MLM:
     avg_loss = []
 
     for i in tbar:
-      idxs = torch.rand(0,input.shape[0], (self.batch_size,))
+      idxs = torch.randint(0,input.shape[0], (self.batch_size,))
       x,y = input[idxs].to(self.device),labels[idxs].to(self.device)
       with torch.no_grad():
         outputs = self.model(x)
@@ -109,5 +113,4 @@ class MLM:
       t_sent = tokens
       t_labels.append(labels)
 
-    return (t_sents,torch.tensor(t_labels))
-
+    return (t_sents,torch.vstack(t_labels))
