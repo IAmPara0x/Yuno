@@ -1,6 +1,5 @@
-from typing import Any, Callable, List
+from typing import Callable, List
 from dataclasses import dataclass
-from itertools import zip_longest
 from cytoolz.curried import reduce, compose, map, concat
 import torch
 
@@ -74,7 +73,7 @@ class Sentencizer(SentencizerBase):
     b_idxs = reduce(acc, enumerate(sents_len[1:], start=1), [[0]])
 
     if (len(b_idxs) > 1 and
-        torch.sum(sents_len[b_idxs[-1]]) <= self.cfg.tol_sent_len):
+            torch.sum(sents_len[b_idxs[-1]]) <= self.cfg.tol_sent_len):
       b_idxs[-2].extend(b_idxs.pop(-1))
 
     batch_sents = compose(list, map(lambda s: [sents[i] for i in s]))(b_idxs)
@@ -95,8 +94,11 @@ class Sentencizer(SentencizerBase):
     return new_texts
 
   def filter_text(self, sents: List[str], embds: Tensor) -> str:
-    q, qe = sents[0], embds[0]
+    _, qe = sents[0], embds[0]
     sents = sents[1:]
+
+    # NOTE: kaggle version of pytorch gives `RuntimeError`
+    # when the matrix is not invertible.
 
     mat, mat_t = embds[1:].T, embds[1:]
     res = mat_t @ mat
