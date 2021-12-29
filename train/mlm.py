@@ -58,7 +58,7 @@ class MLM:
     optim = torch.optim.AdamW(self.model.parameters(), lr=1e-5, betas=(0.9,0.98))
 
     tbar = tqdm(range(self.total_steps))
-    step,avg_loss,acc_loss = 1, [], []
+    step,acc_step,avg_loss,acc_loss = 0, 0, [], []
 
     # IMPROVE: remove while loop.
     while True:
@@ -74,13 +74,15 @@ class MLM:
         loss /= self.accumulation_steps
         loss.backward()
         acc_loss.append(loss.item())
-        step += 1
+        acc_step += 1
         if step % self.accumulation_steps == 0:
           optim.step()
           optim.zero_grad()
           avg_loss.append(sum(acc_loss))
           acc_loss = []
           tbar.update(1)
+          step += 1
+          acc_step = 0
 
 
   def eval(self, sents: List[str], eval_steps: int):
