@@ -23,10 +23,9 @@ class Centrality(CentralityBase):
                  ):
       cum_p,itexts = data
       p,text = input
-      if p < self.prob_threshold:
+      if cum_p < self.prob_threshold:
         cum_p += p
         itexts.append(text)
-
       return (cum_p,itexts)
 
     embds = []
@@ -36,10 +35,14 @@ class Centrality(CentralityBase):
       embds.append(b_embds)
 
     embds = torch.vstack(embds)
+
+    assert embds.shape[0] == len(texts)
+
     state_vec = self.eig_centrality(embds)
-    _, new_texts = reduce(cum_prob,
+    p, new_texts = reduce(cum_prob,
                           sorted(zip(state_vec,texts),reverse=True),
                           (0,[]))
+
     return new_texts
 
   @staticmethod
