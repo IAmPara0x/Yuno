@@ -106,11 +106,13 @@ class Sentencizer(SentencizerBase):
 
     if a > 1e-5:
       contrib = torch.inverse(res) @ mat_t @ qe
-      neg_idxs = torch.where(contrib < 0)[0].tolist()
+      pos_idxs = torch.where(contrib > self.cfg.tolerance)[0].tolist()
       filtered_sents = [
-          sent for idx, sent in enumerate(sents) if idx not in neg_idxs
+          sent for idx, sent in enumerate(sents) if idx in pos_idxs
       ]
-      return " ".join(filtered_sents)
-
+      if self.cfg.terminate(contrib):
+        return " ".join(filtered_sents)
+      else:
+        return self.filter_text(filtered_sents, mat_t[pos_idxs])
     else:
       return " ".join(sents)

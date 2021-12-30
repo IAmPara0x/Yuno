@@ -75,7 +75,7 @@ class MLM:
         loss.backward()
         acc_loss.append(loss.item())
         acc_step += 1
-        if step % self.accumulation_steps == 0:
+        if acc_step % self.accumulation_steps == 0:
           optim.step()
           optim.zero_grad()
           avg_loss.append(sum(acc_loss))
