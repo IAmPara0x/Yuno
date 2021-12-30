@@ -9,9 +9,9 @@ Tensor = torch.Tensor
 @dataclass
 class CentralityBase:
   model: Callable[[List[str]], Tensor]
-  cfg: CentralityConfig
   prob_threshold: float
   batch_size: int
+
 
 @dataclass
 class Centrality(CentralityBase):
