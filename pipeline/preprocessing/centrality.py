@@ -1,4 +1,4 @@
-from typing import Callable, List
+from typing import Callable, List, Tuple
 from dataclasses import dataclass
 from cytoolz.curried import reduce
 import torch
@@ -32,20 +32,20 @@ class Centrality(CentralityBase):
     embds = []
     for idx in range(0, len(texts), self.batch_size):
       b_input = texts[idx:idx+self.batch_size]
-      b_embds = model(b_input)
+      b_embds = self.model(b_input)
       embds.append(b_embds)
 
     embds = torch.vstack(embds)
     state_vec = self.eig_centrality(embds)
     _, new_texts = reduce(cum_prob,
-                          sorted(zip(state_vec,corpus),reverse=True),
+                          sorted(zip(state_vec,texts),reverse=True),
                           (0,[]))
     return new_texts
 
   @staticmethod
   def eig_centrality(mat: Tensor) -> List[float]:
     adj_mat = torch.cosine_similarity(mat.unsqueeze(1), mat, dim=-1)
-    B /= torch.sum(adj_mat,dim=1)
+    B = adj_mat / torch.sum(adj_mat,dim=1)
     e,v = torch.eig(B,eigenvectors=True)
 
     state_vec = v[:,0]/torch.sum(v[:,0])
