@@ -5,15 +5,13 @@ import torch
 
 Tensor = torch.Tensor
 
-@dataclass
-class CentralityConfig:
-  prob_threshold: float
-  batch_size: int
 
 @dataclass
 class CentralityBase:
   model: Callable[[List[str]], Tensor]
   cfg: CentralityConfig
+  prob_threshold: float
+  batch_size: int
 
 @dataclass
 class Centrality(CentralityBase):
@@ -25,15 +23,15 @@ class Centrality(CentralityBase):
                  ):
       cum_p,itexts = data
       p,text = input
-      if p < self.cfg.prob_threshold:
+      if p < self.prob_threshold:
         cum_p += p
         itexts.append(text)
 
       return (cum_p,itexts)
 
     embds = []
-    for idx in range(0, len(texts), self.cfg.batch_size):
-      b_input = texts[idx:idx+self.cfg.batch_size]
+    for idx in range(0, len(texts), self.batch_size):
+      b_input = texts[idx:idx+self.batch_size]
       b_embds = model(b_input)
       embds.append(b_embds)
 
@@ -42,7 +40,6 @@ class Centrality(CentralityBase):
     _, new_texts = reduce(cum_prob,
                           sorted(zip(state_vec,corpus),reverse=True),
                           (0,[]))
-
     return new_texts
 
   @staticmethod
