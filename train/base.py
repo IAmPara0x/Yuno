@@ -1,144 +1,122 @@
-from typing import Tuple, NamedTuple, Dict, Union, List
+from typing import Tuple, Dict, List, Callable, Union, Any
+from enum import Enum, auto
+from dataclasses import dataclass
+from tqdm import tqdm
+from cytoolz.curried import concat, compose
+
 import numpy as np
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
-from .config import Config, SampleMetric
-from .model import Model
+
 
 Tensor = torch.Tensor
 Triplet = Tuple[Tensor, Tensor, Tensor]
+DataUid = int
 
 
-class Data(NamedTuple):
-  uid: int
-  neg_uids: List[int]
-  tokenized_sents: Tensor
-  tokenized_qs: Union[Tensor, None] = None
+class SampleMetric(Enum):
+  l2_norm = auto()
+  l1_norm = auto()
+  cosine_similarity = auto()
 
 
-class TrainBase(NamedTuple):
-  ALL_DATA: Dict[int, Data]
-  TRAIN_DATA_UIDS: List[int]
-  TEST_DATA_UIDS: List[int] = None
+@dataclass(init=True)
+class Data:
+  uid: DataUid
+  neg_uids: List[DataUid]
+  pos_uids: List[DataUid]
+  anchors: List[str]
+  positives: List[str]
 
+  @staticmethod
+  def _sample(data: Union[List[DataUid], List[str]], size):
+    return np.random.choice(data, size, replace=False).tolist()
 
-class SampleData:
-  def __init__(self, train_base: TrainBase, config: Config):
+  def sample_data(self, size: int, type: str) -> List[str]:
+    assert type in ["pos", "neg", "anc"]
 
-    for name, val in zip(train_base._fields, train_base.__iter__()):
-      setattr(self, name, val)
-
-    config_name = f"{self.name()}_config"
-    sampledata_config = getattr(config, config_name, None)
-    for name, val in zip(sampledata_config._fields,
-                         sampledata_config.__iter__()):
-      setattr(self, name, val)
-
-  def __call__(self, sample_test: bool = False) -> Triplet:
-    return self.sample(sample_test)
-
-  def sample(self, sample_test: bool) -> Triplet:
-
-    if sample_test:
-      sampled_uid = np.random.choice(self.TEST_DATA_UIDS)
+    if type == "anc":
+      data = self._sample(self.anchors, size)
     else:
-      sampled_uid = np.random.choice(self.TRAIN_DATA_UIDS)
+      data = self._sample(self.positives, size)
+    return data
 
-    sampled_data = self.ALL_DATA[sampled_uid]
-    anchors, pos_data = self._get_triplet_data(sampled_data)
+  def sample_uid(self, size: int, type: str) -> List[DataUid]:
+    assert type in ["pos", "neg"]
 
-    sampled_neg_uids = np.random.choice(sampled_data.neg_uids,
-                                        self.sample_class_size,
-                                        replace=False)
-    neg_data = torch.cat([
-        self._get_triplet_data(self.ALL_DATA[uid], is_neg_data=True)
-        for uid in sampled_neg_uids
-    ], 0)
-    return (anchors, pos_data, neg_data)
-
-  def _sample_data(self, xs: Tensor, size: int = None) -> Tensor:
-
-    if size is None: size = self.sample_data_size
-    idxs = np.random.choice(len(xs), size, replace=False)
-    return xs[idxs]
-
-  def _get_triplet_data(
-      self,
-      data: Data,
-      is_neg_data: bool = False) -> Union[Tuple[Tensor, Tensor], Tensor]:
-
-    if is_neg_data:
-      neg_data = self._sample_data(data.tokenized_sents)
-      return neg_data.to(self.device)
+    if type == "pos":
+      data = self._sample(self.pos_uids, size)
     else:
-      if data.tokenized_qs is not None:
-        anchors = self._sample_data(data.tokenized_qs)
-        pos_data = self._sample_data(data.tokenized_sents)
-      else:
-        anchors = self._sample_data(data.tokenized_sents)
-        pos_data = anchors.detach().clone()
-      return (anchors.to(self.device), pos_data.to(self.device))
-
-  @classmethod
-  def name(cls) -> str:
-    return cls.__name__.lower()
+      data = self._sample(self.neg_uids, size)
+    return data
 
 
-class SampleTriplets:
-  def __init__(self, config: Config):
+@dataclass(init=True)
+class Sampler:
+  model: Callable[[List[str]], Tuple[Tensor, Tensor]]
+  sample_metric: SampleMetric
+  sample_cls_size: int
+  data_size: int
+  all_data: Dict[DataUid, Data]
+  train_uids: List[DataUid]
+  test_uids: List[DataUid]
 
-    config_name = f"{self.name()}_config"
-    sampletriplets_config = getattr(config, config_name)
-    for name, val in zip(sampletriplets_config._fields,
-                         sampletriplets_config.__iter__()):
-      setattr(self, name, val)
+  def __call__(self, data: str = "train") -> Triplet:
+    assert data == "train" or data == "test"
 
-  def __call__(self, triplets: Triplet, model: Model) -> Triplet:
-    return self.hard_sample(triplets, model)
-
-  def hard_sample(self, triplets: Triplet, model: Model) -> Triplet:
-
-    anchors, pos_data, neg_data = triplets
-
-    assert anchors.shape == pos_data.shape
-    assert anchors.shape[1] == pos_data.shape[1] == neg_data.shape[1]
-    assert type(anchors) == type(pos_data) == type(neg_data) == torch.Tensor
-
-    a_size = anchors.size(0)
-    p_size = pos_data.size(0)
-    n_size = neg_data.size(0)
-
-    mini_batch_data = torch.cat((anchors, pos_data, neg_data), 0)
-    with torch.no_grad():
-      embeddings = model(mini_batch_data)
-
-    a_embds = embeddings[:a_size]
-    p_embds = embeddings[a_size:p_size * 2]
-    n_embds = embeddings[p_size * 2:]
-
-    pos_distances = self.pairwise_metric((a_embds, p_embds))
-    hard_positives = torch.max(pos_distances, 1).indices
-
-    if a_embds.shape == n_embds:
-      neg_distances = self.pairwise_metric((a_embds, n_embds))
+    if data == "train":
+      sample_uid = np.random.choice(self.train_uids)
     else:
-      h, w = (n_size - a_size), a_embds.shape[1]
-      padding = torch.zeros((h, w)).to(a_embds.device)
-      padded_anchors = torch.cat((a_embds, padding))
-      neg_distances = self.pairwise_metric((padded_anchors, n_embds))
-      neg_distances = neg_distances[:a_size]
+      sample_uid = np.random.choice(self.test_uids)
 
-    hard_negatives = torch.min(neg_distances, 1).indices
-    hard_triplets = [
-        (anchors[i], pos_data[j], neg_data[k])
-        for i, j, k in zip(range(a_size), hard_positives, hard_negatives)
-    ]
+    return self.sample_hard(sample_uid)
+
+  def sample_hard(self, uid: DataUid) -> Triplet:
+    data = self.all_data[uid]
+    pos_uids = data.sample_uid(size=1, type="pos")
+    neg_uids = data.sample_uid(size=self.sample_cls_size, type="neg")
+
+    anc_data = self._sample_data([uid], type="pos")
+    pos_data = self._sample_data(pos_uids, type="pos")
+    neg_data = self._sample_data(neg_uids, type="neg")
+
+    tokenized_data, embds = self.model(anc_data + pos_data + neg_data)
+
+    tanc_data = tokenized_data[:self.data_size]
+    tpos_data = tokenized_data[self.data_size:self.data_size*2]
+    tneg_data = tokenized_data[self.data_size*2:]
+
+    anc_embds = embds[:self.data_size]
+    pos_embds = embds[self.data_size:self.data_size*2]
+    neg_embds = embds[self.data_size*2:]
+
+    pos_scores = self.pairwise_metric((anc_embds, pos_embds))
+    hard_positives = torch.max(pos_scores, 1).indices
+
+    if anc_embds.shape == neg_embds.shape:
+      neg_scores = self.pairwise_metric((anc_embds, neg_embds))
+    else:
+      anc_size, neg_size = anc_embds.size(0), neg_embds.size(0)
+      h, w = (neg_size - anc_size), anc_embds.shape[1]
+      padding = torch.zeros((h, w)).to(anc_embds.device)
+      padded_anchors = torch.cat((anc_embds, padding))
+      neg_scores = self.pairwise_metric((padded_anchors, neg_embds))
+      neg_scores = neg_scores[:anc_size]
+
+    hard_negatives = torch.min(neg_scores, 1).indices
+
+    hard_triplets = [(tanc_data[a], tpos_data[p], tneg_data[n])
+                     for a, p, n in zip(range(self.data_size),
+                                        hard_positives,
+                                        hard_negatives)
+                     ]
 
     anchors = torch.vstack([i[0] for i in hard_triplets])
-    h_pos = torch.vstack([i[1] for i in hard_triplets])
-    h_neg = torch.vstack([i[2] for i in hard_triplets])
+    hpos_data = torch.vstack([i[1] for i in hard_triplets])
+    hneg_data = torch.vstack([i[2] for i in hard_triplets])
 
-    return anchors, h_pos, h_neg
+    return anchors, hpos_data, hneg_data
 
   def pairwise_metric(self, input: Tuple[Tensor, Tensor]) -> Tensor:
 
@@ -166,6 +144,26 @@ class SampleTriplets:
       raise Exception("sample_metric should be in SampleMetric enum.")
     return scores_mat
 
-  @classmethod
-  def name(cls) -> str:
-    return cls.__name__.lower()
+  def _sample_data(self, uids: List[DataUid], type: str) -> List[str]:
+    return compose(list,
+                   concat)([self.all_data[uid].sample_data(size=self.data_size,
+                                                           type=type,)
+                            for uid in uids
+                            ])
+
+
+@dataclass(init=True)
+class Trainer:
+  sampler: Sampler
+  tokenizer: Callable[[List[str]], Tensor]
+  model: nn.Module
+  loss_fn: Callable[[Triplet], Tensor]
+  optimizer: Any
+  batch_size: int
+  acc_steps: int
+  train_steps: int
+  test_steps: int
+
+  def train(self):
+    self.model.train()
+    pass

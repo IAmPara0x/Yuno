@@ -1,4 +1,4 @@
-from typing import List, Callable, Any, Tuple
+from typing import List, Any, Tuple
 from dataclasses import dataclass
 from cytoolz.curried import reduce, compose
 from tqdm import tqdm
@@ -8,6 +8,7 @@ import torch.nn.functional as F
 import torch
 
 Tensor = torch.Tensor
+
 
 @dataclass(init=True)
 class MLM:
@@ -23,7 +24,7 @@ class MLM:
     self.mask_token_id = self.tokenizer.mask_token_id
     self.vocab_len = len(self.tokenizer.get_vocab())
 
-  def mask_tokens(self, tokens: Tensor) -> Tuple[Tensor,Tensor]:
+  def mask_tokens(self, tokens: Tensor) -> Tuple[Tensor, Tensor]:
 
     def mask(labels, input):
       idx, token = input
@@ -41,24 +42,24 @@ class MLM:
         if prob < 0.8:
           tokens[idx] = self.mask_token_id
         elif prob < 0.9:
-          tokens[idx] = torch.randint(0,self.vocab_len,(1,)).item()
+          tokens[idx] = torch.randint(0, self.vocab_len, (1,)).item()
 
       else:
         labels.append(-100)
       return labels
 
-    labels = compose(torch.tensor)(reduce(mask, enumerate(tokens),[]))
-    return (tokens,labels)
+    labels = compose(torch.tensor)(reduce(mask, enumerate(tokens), []))
+    return (tokens, labels)
 
   def train(self, sents: List[str]):
 
     input, labels = self._get_data(sents)
 
     self.model.train()
-    optim = torch.optim.AdamW(self.model.parameters(), lr=1e-5, betas=(0.9,0.98))
+    optim = torch.optim.AdamW(self.model.parameters(), lr=1e-5, betas=(0.9, 0.98))
 
     tbar = tqdm(range(self.total_steps))
-    step,acc_step,avg_loss,acc_loss = 0, 0, [], []
+    step, acc_step, avg_loss, acc_loss = 0, 0, [], []
 
     # IMPROVE: remove while loop.
     while True:
@@ -66,7 +67,7 @@ class MLM:
       if step == self.total_steps:
         break
       else:
-        idxs = torch.randint(0,input.shape[0], (self.batch_size,))
+        idxs = torch.randint(0, input.shape[0], (self.batch_size,))
         x, y = input[idxs].to(self.device), labels[idxs].to(self.device)
         outputs = self.model(x)
         loss = F.cross_entropy(outputs.logits.view(-1, self.vocab_len), y.view(-1))
@@ -84,35 +85,34 @@ class MLM:
           step += 1
           acc_step = 0
 
-
   def eval(self, sents: List[str], eval_steps: int):
 
-    input,labels = self._get_data(sents)
+    input, labels = self._get_data(sents)
     self.model.eval()
 
     tbar = tqdm(range(eval_steps))
     avg_loss = []
 
-    for i in tbar:
-      idxs = torch.randint(0,input.shape[0], (self.batch_size,))
-      x,y = input[idxs].to(self.device),labels[idxs].to(self.device)
+    for _ in tbar:
+      idxs = torch.randint(0, input.shape[0], (self.batch_size,))
+      x, y = input[idxs].to(self.device), labels[idxs].to(self.device)
       with torch.no_grad():
         outputs = self.model(x)
         loss = F.cross_entropy(outputs.logits.view(-1, self.vocab_len), y.view(-1))
         avg_loss.append(loss.item())
       tbar.set_description(f"eval loss:{loss.item()} avg_eval_loss: {torch.mean(torch.tensor(avg_loss))}")
 
-  def _get_data(self, sents: List[str]) -> Tuple[Tensor,Tensor]:
+  def _get_data(self, sents: List[str]) -> Tuple[Tensor, Tensor]:
 
-    t_sents  = self.tokenizer(sents, return_tensors="pt",
-                              truncation=True, padding=True
-                              )["input_ids"]
+    t_sents = self.tokenizer(sents, return_tensors="pt",
+                             truncation=True, padding=True
+                             )["input_ids"]
 
     t_labels = []
 
     for t_sent in t_sents:
-      tokens,labels = self.mask_tokens(t_sent)
+      tokens, labels = self.mask_tokens(t_sent)
       t_sent = tokens
       t_labels.append(labels)
 
-    return (t_sents,torch.vstack(t_labels))
+    return (t_sents, torch.vstack(t_labels))
