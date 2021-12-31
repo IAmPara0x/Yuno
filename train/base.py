@@ -1,4 +1,4 @@
-from typing import Tuple, Dict, List, Callable, Union, Any
+from typing import Tuple, Dict, List, Callable, Union
 from enum import Enum, auto
 from dataclasses import dataclass
 from tqdm import tqdm
@@ -13,6 +13,8 @@ import torch.nn.functional as F
 Tensor = torch.Tensor
 Triplet = Tuple[Tensor, Tensor, Tensor]
 DataUid = int
+Model = Callable[[List[str]], Tuple[Tensor, Tensor]]
+Tokenizer = Callable[..., Dict[str, Tensor]]
 
 
 class SampleMetric(Enum):
@@ -54,25 +56,24 @@ class Data:
 
 @dataclass(init=True)
 class Sampler:
-  model: Callable[[List[str]], Tuple[Tensor, Tensor]]
   sample_metric: SampleMetric
   sample_cls_size: int
   data_size: int
   all_data: Dict[DataUid, Data]
   train_uids: List[DataUid]
-  test_uids: List[DataUid]
+  eval_uids: List[DataUid]
 
-  def __call__(self, data: str = "train") -> Triplet:
-    assert data == "train" or data == "test"
+  def __call__(self, model: Model, mode: str = "train") -> Triplet:
+    assert mode == "train" or mode == "eval"
 
-    if data == "train":
+    if mode == "train":
       sample_uid = np.random.choice(self.train_uids)
     else:
-      sample_uid = np.random.choice(self.test_uids)
+      sample_uid = np.random.choice(self.eval_uids)
 
-    return self.sample_hard(sample_uid)
+    return self.sample_hard(sample_uid, model)
 
-  def sample_hard(self, uid: DataUid) -> Triplet:
+  def sample_hard(self, uid: DataUid, model: Model) -> Triplet:
     data = self.all_data[uid]
     pos_uids = data.sample_uid(size=1, type="pos")
     neg_uids = data.sample_uid(size=self.sample_cls_size, type="neg")
@@ -81,7 +82,7 @@ class Sampler:
     pos_data = self._sample_data(pos_uids, type="pos")
     neg_data = self._sample_data(neg_uids, type="neg")
 
-    tokenized_data, embds = self.model(anc_data + pos_data + neg_data)
+    tokenized_data, embds = model(anc_data + pos_data + neg_data)
 
     tanc_data = tokenized_data[:self.data_size]
     tpos_data = tokenized_data[self.data_size:self.data_size*2]
@@ -116,7 +117,7 @@ class Sampler:
     hpos_data = torch.vstack([i[1] for i in hard_triplets])
     hneg_data = torch.vstack([i[2] for i in hard_triplets])
 
-    return anchors, hpos_data, hneg_data
+    return (anchors, hpos_data, hneg_data)
 
   def pairwise_metric(self, input: Tuple[Tensor, Tensor]) -> Tensor:
 
@@ -155,15 +156,89 @@ class Sampler:
 @dataclass(init=True)
 class Trainer:
   sampler: Sampler
-  tokenizer: Callable[[List[str]], Tensor]
+  tokenizer: Tokenizer
   model: nn.Module
   loss_fn: Callable[[Triplet], Tensor]
-  optimizer: Any
+  optimizer: torch.optim.AdamW
   batch_size: int
   acc_steps: int
   train_steps: int
-  test_steps: int
+  eval_steps: int
 
-  def train(self):
+  def train(self) -> None:
     self.model.train()
-    pass
+
+    avg_loss, acc_loss = [], []
+    step, acc_step = 0, 0
+    tbar = tqdm(total=self.train_steps)
+
+    while True:
+
+      if step == self.train_steps:
+        tbar.close()
+        break
+
+      anc, pos, neg = self.batch_sample()
+      anc_embds, pos_embds, neg_embds = self.model(anc=anc, pos=pos, neg=neg)
+      loss = self.loss_fn((anc_embds, pos_embds, neg_embds))
+      tbar.set_description(f"AVG_LOSS: {np.average(avg_loss):.5f},\
+                             LOSS:{loss.item():.5f},\
+                             STEP: {step}")
+      loss /= self.acc_steps
+      loss.backward()
+      acc_loss.append(loss.item())
+      acc_step += 1
+
+      if acc_step % self.acc_steps == 0:
+        step += 1
+        self.optimizer.step()
+        self.model.zero_grad()
+        avg_loss.append(sum(acc_loss))
+        tbar.update(1)
+        acc_loss = []
+
+  def eval(self) -> None:
+    self.model.eval()
+    avg_loss, step = [], 0
+    tbar = tqdm(total=self.eval_steps)
+
+    while True:
+      if step == self.eval_steps:
+        tbar.close()
+        break
+      anc, pos, neg = self.batch_sample(mode="eval")
+
+      with torch.no_grad():
+        anc_embds, pos_embds, neg_embds = self.model(anc=anc, pos=pos, neg=neg)
+        loss = self.loss_fn((anc_embds, pos_embds, neg_embds))
+        avg_loss.append(loss.item())
+        tbar.set_description(f"AVG_LOSS: {np.average(avg_loss):.5f},\
+                               LOSS:{loss.item():.5f},\
+                               STEP: {step}")
+      tbar.update(1)
+      step += 1
+
+  def batch_sample(self, batch_size=None, mode="train") -> Triplet:
+
+    if batch_size is None:
+      batch_size = self.batch_size
+
+    b_anc, b_pos, b_neg = [], [], []
+    for _ in range(batch_size):
+      anc, pos, neg = self.sampler(self._offline_sample, mode=mode)
+      b_anc.append(anc)
+      b_pos.append(pos)
+      b_neg.append(neg)
+
+    return (torch.vstack(b_anc),
+            torch.vstack(b_pos),
+            torch.vstack(b_neg))
+
+  def _offline_sample(self, texts: List[str]) -> Tuple[Tensor, Tensor]:
+    ttexts = self.tokenizer(texts, padding=True,
+                            truncation=True,
+                            return_tensors="pt"
+                            )["input_ids"]
+    with torch.no_grad():
+      embds = self.model(ttexts=ttexts)
+    return (ttexts, embds)
