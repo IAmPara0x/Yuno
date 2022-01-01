@@ -1,6 +1,6 @@
 from typing import Callable, List, Tuple, Optional
 from dataclasses import dataclass
-from cytoolz.curried import reduce # type: ignore
+from cytoolz.curried import reduce  # type: ignore
 import torch
 
 Tensor = torch.Tensor
@@ -18,15 +18,15 @@ class Centrality(CentralityBase):
 
   def __call__(self, texts: List[str], prob_threshold: Optional[float] = None) -> List[str]:
 
-    def cum_prob(data:Tuple[float,List[str]],
-                 input: Tuple[float,str]
+    def cum_prob(data: Tuple[float, List[str]],
+                 input: Tuple[float, str]
                  ):
-      cum_p,itexts = data
-      p,text = input
+      cum_p, itexts = data
+      p, text = input
       if cum_p < prob_threshold:
         cum_p += p
         itexts.append(text)
-      return (cum_p,itexts)
+      return (cum_p, itexts)
 
     if prob_threshold is None:
       prob_threshold = self.prob_threshold
@@ -41,18 +41,30 @@ class Centrality(CentralityBase):
 
     assert embds.shape[0] == len(texts)
 
-    state_vec = self.eig_centrality(embds)
-    p, new_texts = reduce(cum_prob,
-                          sorted(zip(state_vec,texts),reverse=True),
-                          (0,[]))
+    state_vec = self.eig_centrality(embds, self.batch_size)
+    _, new_texts = reduce(cum_prob,
+                          sorted(zip(state_vec, texts), reverse=True),
+                          (0, []))
 
     return new_texts
 
   @staticmethod
-  def eig_centrality(mat: Tensor) -> List[float]:
-    adj_mat = torch.cosine_similarity(mat.unsqueeze(1), mat, dim=-1)
-    B = adj_mat / torch.sum(adj_mat,dim=1)
-    e,v = torch.eig(B,eigenvectors=True)
+  def eig_centrality(mat: Tensor, batch_size: int) -> List[float]:
 
-    state_vec = v[:,0]/torch.sum(v[:,0])
+    adj_mat = []
+
+    for idx in range(0, mat.shape[0], batch_size):
+      padj_mat = torch.cosine_similarity(mat[idx:idx+batch_size].unsqueeze(1),
+                                         mat, dim=-1)
+      adj_mat.append(padj_mat)
+
+    adj_mat = torch.vstack(adj_mat)
+
+    assert (adj_mat.shape[0] == mat.shape[0] and
+            adj_mat.shape[1] == mat.shape[0])
+
+    B = adj_mat / torch.sum(adj_mat, dim=1)
+    e, v = torch.eig(B, eigenvectors=True)
+
+    state_vec = v[:, 0]/torch.sum(v[:, 0])
     return state_vec.tolist()

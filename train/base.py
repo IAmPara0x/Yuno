@@ -164,6 +164,7 @@ class Trainer:
   acc_steps: int
   train_steps: int
   eval_steps: int
+  device: str
 
   def train(self) -> None:
     self.model.train()
@@ -238,7 +239,7 @@ class Trainer:
     ttexts = self.tokenizer(texts, padding=True,
                             truncation=True,
                             return_tensors="pt"
-                            )["input_ids"]
+                            )["input_ids"].to(self.device)
     with torch.no_grad():
       embds = self.model(ttexts=ttexts)
     return (ttexts, embds)
