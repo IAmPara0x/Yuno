@@ -1,6 +1,6 @@
 import re
 from typing import List, NamedTuple, Callable
-from cytoolz.curried import reduce, compose, map
+from cytoolz.curried import reduce, compose, map # type: ignore
 from enum import Enum
 import inspect
 

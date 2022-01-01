@@ -1,6 +1,6 @@
 from typing import Callable, List
 from dataclasses import dataclass
-from cytoolz.curried import reduce, compose, map, concat
+from cytoolz.curried import reduce, compose, map, concat # type: ignore
 import torch
 
 Tensor = torch.Tensor

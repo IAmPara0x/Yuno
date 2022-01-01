@@ -1,6 +1,6 @@
-from typing import Callable, List, Tuple
+from typing import Callable, List, Tuple, Optional
 from dataclasses import dataclass
-from cytoolz.curried import reduce
+from cytoolz.curried import reduce # type: ignore
 import torch
 
 Tensor = torch.Tensor
@@ -16,17 +16,20 @@ class CentralityBase:
 @dataclass
 class Centrality(CentralityBase):
 
-  def __call__(self, texts: List[str]) -> List[str]:
+  def __call__(self, texts: List[str], prob_threshold: Optional[float] = None) -> List[str]:
 
     def cum_prob(data:Tuple[float,List[str]],
                  input: Tuple[float,str]
                  ):
       cum_p,itexts = data
       p,text = input
-      if cum_p < self.prob_threshold:
+      if cum_p < prob_threshold:
         cum_p += p
         itexts.append(text)
       return (cum_p,itexts)
+
+    if prob_threshold is None:
+      prob_threshold = self.prob_threshold
 
     embds = []
     for idx in range(0, len(texts), self.batch_size):
