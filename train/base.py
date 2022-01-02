@@ -180,7 +180,7 @@ class Trainer:
         break
 
       anc, pos, neg = self.batch_sample()
-      anc_embds, pos_embds, neg_embds = self.model(anc=anc, pos=pos, neg=neg)
+      anc_embds, pos_embds, neg_embds = self.model(input=(anc,pos,neg))
       loss = self.loss_fn((anc_embds, pos_embds, neg_embds))
       tbar.set_description(f"AVG_LOSS: {np.average(avg_loss):.5f},\
                              LOSS:{loss.item():.5f},\
@@ -210,7 +210,7 @@ class Trainer:
       anc, pos, neg = self.batch_sample(mode="eval")
 
       with torch.no_grad():
-        anc_embds, pos_embds, neg_embds = self.model(anc=anc, pos=pos, neg=neg)
+        anc_embds, pos_embds, neg_embds = self.model(input=(anc,pos,neg))
         loss = self.loss_fn((anc_embds, pos_embds, neg_embds))
         avg_loss.append(loss.item())
         tbar.set_description(f"AVG_LOSS: {np.average(avg_loss):.5f},\
@@ -241,5 +241,5 @@ class Trainer:
                             return_tensors="pt"
                             )["input_ids"].to(self.device)
     with torch.no_grad():
-      embds = self.model(ttexts=ttexts)
+      embds = self.model(input=ttexts)
     return (ttexts, embds)
