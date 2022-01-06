@@ -40,8 +40,12 @@ class Data:
 
     if type == "anc":
       data = self._sample(self.anchors, size)
-    else:
+    elif type == "pos":
       data = self._sample(self.positives, size)
+    elif type == "neg":
+      data = self._sample(self.positives, size)
+    else:
+      raise Exception(f"Expected values of types are `pos`, `neg`, `anc` but got {type}")
     return data
 
   def sample_uid(self, size: int, type: str) -> List[DataUid]:
@@ -78,11 +82,11 @@ class Sampler:
     pos_uids = data.sample_uid(size=1, type="pos")
     neg_uids = data.sample_uid(size=self.sample_cls_size, type="neg")
 
-    anc_data = self._sample_data([uid], type="pos")
-    pos_data = self._sample_data(pos_uids, type="pos")
-    neg_data = self._sample_data(neg_uids, type="neg")
+    anc_data = self._sample_data(uids=[uid], type="anc")
+    pos_data = self._sample_data(uids=pos_uids, type="pos")
+    neg_data = self._sample_data(uids=neg_uids, type="neg")
 
-    tokenized_data, embds = model(anc_data + pos_data + neg_data)
+    tokenized_data, embds = model(input=anc_data + pos_data + neg_data)
 
     tanc_data = tokenized_data[:self.data_size]
     tpos_data = tokenized_data[self.data_size:self.data_size*2]
@@ -235,8 +239,8 @@ class Trainer:
             torch.vstack(b_pos),
             torch.vstack(b_neg))
 
-  def _offline_sample(self, texts: List[str]) -> Tuple[Tensor, Tensor]:
-    ttexts = self.tokenizer(texts, padding=True,
+  def _offline_sample(self, input: List[str]) -> Tuple[Tensor, Tensor]:
+    ttexts = self.tokenizer(input, padding=True,
                             truncation=True,
                             return_tensors="pt"
                             )["input_ids"].to(self.device)
