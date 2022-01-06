@@ -3,6 +3,7 @@ from enum import Enum, auto
 from dataclasses import dataclass
 from tqdm import tqdm
 from cytoolz.curried import concat, compose
+import random
 
 import numpy as np
 import torch
@@ -63,6 +64,7 @@ class Sampler:
   sample_metric: SampleMetric
   sample_cls_size: int
   data_size: int
+  prob_sample_anc: float
   all_data: Dict[DataUid, Data]
   train_uids: List[DataUid]
   eval_uids: List[DataUid]
@@ -82,9 +84,13 @@ class Sampler:
     pos_uids = data.sample_uid(size=1, type="pos")
     neg_uids = data.sample_uid(size=self.sample_cls_size, type="neg")
 
-    anc_data = self._sample_data(uids=[uid], type="anc")
-    pos_data = self._sample_data(uids=pos_uids, type="pos")
-    neg_data = self._sample_data(uids=neg_uids, type="neg")
+    anc_data = self._batch_sample_data(uids=[uid], type="anc")
+    pos_data = self._batch_sample_data(uids=pos_uids, type="pos")
+
+    if random.random() < self.prob_sample_anc:
+      neg_data = self._batch_sample_data(uids=neg_uids, type="anc")
+    else:
+      neg_data = self._batch_sample_data(uids=neg_uids, type="neg")
 
     tokenized_data, embds = model(input=anc_data + pos_data + neg_data)
 
@@ -149,7 +155,7 @@ class Sampler:
       raise Exception("sample_metric should be in SampleMetric enum.")
     return scores_mat
 
-  def _sample_data(self, uids: List[DataUid], type: str) -> List[str]:
+  def _batch_sample_data(self, uids: List[DataUid], type: str) -> List[str]:
     return compose(list,
                    concat)([self.all_data[uid].sample_data(size=self.data_size,
                                                            type=type,)
