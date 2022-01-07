@@ -1,10 +1,10 @@
-from typing import Callable, List, Any
+from typing import Callable, List, Tuple
 from dataclasses import dataclass
 from cytoolz.curried import reduce, compose, map, concat # type: ignore
 import torch
 
 Tensor = torch.Tensor
-
+Nlp = Callable[[str], List[str]]
 
 @dataclass(init=True)
 class SentencizerConfig:
@@ -18,7 +18,7 @@ class SentencizerConfig:
 
 @dataclass(init=True)
 class SentencizerBase:
-  nlp: Callable[[str], Any]
+  nlp: Nlp
   model: Callable[[List[str]], Tensor]
   cfg: SentencizerConfig
 
@@ -49,7 +49,8 @@ class Sentencizer(SentencizerBase):
   def create_sents(self, texts: List[str]):
 
     def acc_sents(text: str):
-      sents = self.group_sents([sent.text for sent in self.nlp(text).sents])
+      sents = compose(self.group_sents,
+                      self.nlp)(text)
       return sents
 
     bs = compose(list, map(acc_sents))(texts)
@@ -116,3 +117,39 @@ class Sentencizer(SentencizerBase):
         return self.filter_text(filtered_sents, mat_t[pos_idxs])
     else:
       return " ".join(sents)
+
+Score = float
+Doc = Tuple[Score,str]
+
+class SentenceFilling:
+  modes = ["greedy"]
+
+  def __init__(self, nlp: Nlp,
+               score_fn: Callable[[str], Score],
+               max_score: int):
+    self.max_score = max_score
+    self.nlp = nlp
+    self.score_fn = score_fn
+
+  def __call__(self, text: str, datas: List[Doc],
+               mode:str = "greedy") -> str:
+
+    assert mode in self.modes
+
+    if mode == "greedy":
+      return self.greedy_filling(text,datas)
+    else:
+      raise NotImplemented
+
+  def greedy_filling(self, text: str, datas: List[Doc]) -> str:
+    score = self.score_fn(text)
+    req_score = self.max_score - score
+    datas = sorted(datas,key=lambda data: abs(req_score - data[0]))
+
+    sel_score,sel_text = datas.pop(0)
+
+    if sel_score + req_score <= self.max_score:
+      text += " " + sel_text
+      return self.greedy_filling(text, datas)
+    else:
+      return text
