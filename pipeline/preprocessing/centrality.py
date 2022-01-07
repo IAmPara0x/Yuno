@@ -34,13 +34,13 @@ class Centrality(CentralityBase):
     assert embds.shape[0] == len(texts)
 
     state_vec = self.eig_centrality(embds, self.batch_size)
-    datas = sorted(zip(state_vec, texts), reverse=True)
+    datas = sorted(zip(state_vec, [*enumerate(texts)]), reverse=True)
 
     acc_prob: float = 0
     output: Output = ([],[])
 
-    for idx,data in enumerate(datas):
-      prob,text = data
+    for data in datas:
+      prob,idx,text = data[0],data[1]
 
       if acc_prob < self.prob_threshold:
         output[0].append(idx)
