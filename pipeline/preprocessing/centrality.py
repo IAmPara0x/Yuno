@@ -40,7 +40,7 @@ class Centrality(CentralityBase):
     output: Output = ([],[])
 
     for data in datas:
-      prob,idx,text = data[0],data[1]
+      prob,idx,text = data[0],*data[1]
 
       if acc_prob < self.prob_threshold:
         output[0].append(idx)
