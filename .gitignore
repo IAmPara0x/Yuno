@@ -6,3 +6,4 @@ test.py
 *.pkl
 ./pipeline/crawler/data
 play/
+Scratch

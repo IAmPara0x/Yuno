@@ -1,100 +1,68 @@
-from typing import Callable, List, Tuple
+from typing import Callable, List, Tuple, TypeVar
 from dataclasses import dataclass
-from cytoolz.curried import reduce, compose, map, concat # type: ignore
+import operator
+from cytoolz.curried import reduce, compose, map, concat, accumulate  # type: ignore
 import torch
 
 Tensor = torch.Tensor
-Nlp = Callable[[str], List[str]]
+Texts = List[str]
+Idxs = List[int]
+Nlp = Callable[[str], Texts]
+A = TypeVar("A")
+
 
 @dataclass(init=True)
-class SentencizerConfig:
-  tolerance: float
-  threshold: Callable[[Tensor], float]
-  terminate: Callable[[Tensor], bool]
+class SentencizerBase:
+  nlp: Nlp
+  model: Callable[[Texts], Tensor]
   batch_size: int
   max_sent_length: int
   tol_sent_len: int
 
 
 @dataclass(init=True)
-class SentencizerBase:
-  nlp: Nlp
-  model: Callable[[List[str]], Tensor]
-  cfg: SentencizerConfig
-
-
-@dataclass(init=True)
 class Sentencizer(SentencizerBase):
+  modes: List[str] = ["mmr", "cossim"]
 
-  def __call__(self, texts: List[str]) -> List[str]:
+  def __call__(self, texts: Texts, mode: str = "mmr", *args, **kwargs) -> Texts:
 
-    def acc(data, sents):
-      data[0].extend(sents)
-      data[1].append(data[-1][-1] + len(sents))
-      return data
+    assert mode in self.modes
 
-    b_sents, bs_len = self.create_sents(texts)
-    all_sents, pos_idxs = reduce(acc, b_sents, [[], [0]])
-    all_embds = self.model(all_sents)
-    batch_texts = self.filter_texts(all_sents, all_embds, pos_idxs)
+    if mode == "mmr":
+      return self.mmr_mode(texts, *args, **kwargs)
+    elif mode == "cossim":
+      return self.cossim_mode(texts, *args, **kwargs)
 
-    new_texts = []
+    else:
+      raise NotImplementedError()
 
-    for b_len in bs_len:
-      new_texts.append(" ".join(batch_texts[:b_len]))
-      del batch_texts[:b_len]
+  def cossim_mode(self, texts: Texts, *args, **kwargs) -> Texts:
+    return texts
 
-    return new_texts
+  def mmr_mode(self, texts: Texts, *args, **kwargs):
+    text_ids, sents_ids, sents = self.group_data(texts)
+    embds: Tensor = self.model(sents)
 
-  def create_sents(self, texts: List[str]):
+    batch_sents = self.gather(sents, sents_ids)
+    batch_embds = [*map(torch.vstack, self.gather(embds, sents_ids))]
 
-    def acc_sents(text: str):
-      sents = compose(self.group_sents,
-                      self.nlp)(text)
-      return sents
+    batch_texts = []
 
-    bs = compose(list, map(acc_sents))(texts)
-    bs_len = compose(list, map(len))(bs)
-    return concat(bs), bs_len
+    for i in range(len(batch_sents)):
+      text = self.mmr_filter(batch_sents[i], batch_embds[i], **kwargs)
+      batch_texts.append(text)
 
-  def group_sents(self, sents: List[str]) -> List[List[str]]:
+    new_texts = self.gather(batch_texts, text_ids)
+    return [*map(lambda text: " ".join(text), new_texts)]
 
-    def acc(data, input_data):
-      idx, sent_len = input_data
-      curr_sent_len = torch.sum(sents_len[data[-1]])
+  def mmr_filter(self, sents: Texts, embds: Tensor, **kwargs) -> str:
 
-      if (curr_sent_len + sent_len) >= self.cfg.max_sent_length:
-        data.append([idx])
-      else:
-        data[-1].append(idx)
-      return data
+    assert "threshold" in kwargs
+    assert "terminate" in kwargs
 
-    sents_len = compose(torch.tensor, list, map)(lambda x: len(x.split()),
-                                                 sents)
-    b_idxs = reduce(acc, enumerate(sents_len[1:], start=1), [[0]])
+    threshold = kwargs["threshold"]
+    terminate = kwargs["terminate"]
 
-    if (len(b_idxs) > 1 and
-            torch.sum(sents_len[b_idxs[-1]]) <= self.cfg.tol_sent_len):
-      b_idxs[-2].extend(b_idxs.pop(-1))
-
-    batch_sents = compose(list, map(lambda s: [sents[i] for i in s]))(b_idxs)
-
-    return batch_sents
-
-  def filter_texts(self, all_sents: List[str], all_embds: Tensor,
-                   pos_idxs: List[int]) -> List[str]:
-
-    def acc_text(n_texts, idxs):
-      s_idx, e_idx = idxs
-      sents, embds = all_sents[s_idx:e_idx], all_embds[s_idx:e_idx]
-      n_text = self.filter_text(sents, embds)
-      n_texts.append(n_text)
-      return n_texts
-
-    new_texts = reduce(acc_text, zip(pos_idxs, pos_idxs[1:]), [])
-    return new_texts
-
-  def filter_text(self, sents: List[str], embds: Tensor) -> str:
     _, qe = sents[0], embds[0]
     sents = sents[1:]
 
@@ -107,19 +75,70 @@ class Sentencizer(SentencizerBase):
 
     if a > 1e-5:
       contrib = torch.inverse(res) @ mat_t @ qe
-      pos_idxs = torch.where(contrib > self.cfg.tolerance)[0].tolist()
+      pos_idxs = torch.where(contrib > threshold)[0].tolist()
       filtered_sents = [
           sent for idx, sent in enumerate(sents) if idx in pos_idxs
       ]
-      if self.cfg.terminate(contrib):
+      if terminate(contrib):
         return " ".join(filtered_sents)
       else:
-        return self.filter_text(filtered_sents, mat_t[pos_idxs])
+        return self.mmr_filter(filtered_sents, mat_t[pos_idxs])
     else:
       return " ".join(sents)
 
+  def group_data(self, texts: Texts) -> Tuple[Idxs, Idxs, Texts]:
+
+    _datas: List[Texts] = [*map(self._group_text, texts)]
+    text_ids: Idxs = [0, *accumulate(operator.add, map(len, _datas))]
+    datas: Texts = [*concat(_datas)]
+    batch_sents: List[Texts] = [*map(self.nlp, datas)]
+
+    for i in range(len(batch_sents)):
+      batch_sents[i] = [datas[i]] + batch_sents[i]
+
+    sents_ids: Idxs = [0, *accumulate(operator.add, map(len, batch_sents))]
+    return text_ids, sents_ids, [*concat(batch_sents)]
+
+  def _group_text(self, text: str) -> Texts:
+
+    def join_sents(sent1: str, sent2: str) -> str:
+      if sent1:
+        return sent1 + " " + sent2
+      else:
+        return sent2
+
+    sents = self.nlp(text)
+    grp_texts = []
+    curr_text = ""
+    curr_text_len = 0
+
+    for sent in sents:
+      sent_len = len(sent.split())
+      if sent_len + curr_text_len < self.max_sent_length:
+        curr_text_len += sent_len
+        curr_text = join_sents(curr_text, sent)
+      else:
+        grp_texts.append(curr_text)
+        curr_text, curr_text_len = sent, sent_len
+
+    if len(grp_texts) and curr_text_len <= self.tol_sent_len:
+      grp_texts[-1] += " " + curr_text
+    else:
+      grp_texts.append(curr_text)
+
+    return grp_texts
+
+  @staticmethod
+  def gather(data: List[A], idxs: Idxs) -> List[List[A]]:
+    acc = []
+    for s_idx, e_idx in zip(idxs, idxs[1:]):
+      acc.append(data[s_idx:e_idx])
+    return acc
+
+
 Score = float
-Doc = Tuple[Score,str]
+Doc = Tuple[Score, str]
+
 
 class SentenceFilling:
   modes = ["greedy"]
@@ -132,24 +151,25 @@ class SentenceFilling:
     self.score_fn = score_fn
 
   def __call__(self, text: str, datas: List[Doc],
-               mode:str = "greedy") -> str:
+               mode: str = "greedy") -> str:
 
     assert mode in self.modes
 
     if mode == "greedy":
-      return self.greedy_filling(text,datas)
+      return self.greedy_filling(text, datas)
     else:
-      raise NotImplemented
+      raise NotImplementedError()
 
   def greedy_filling(self, text: str, datas: List[Doc]) -> str:
     score = self.score_fn(text)
     req_score = self.max_score - score
-    datas = sorted(datas,key=lambda data: abs(req_score - data[0]))
+    datas = sorted(datas, key=lambda data: abs(req_score - data[0]))
 
-    sel_score,sel_text = datas.pop(0)
+    for idx, data in enumerate(datas):
 
-    if sel_score + req_score <= self.max_score:
-      text += " " + sel_text
-      return self.greedy_filling(text, datas)
-    else:
-      return text
+      sel_score, sel_text = data
+
+      if sel_score + score < self.max_score:
+        text += " " + sel_text
+        return self.greedy_filling(text, datas[idx:])
+    return text
