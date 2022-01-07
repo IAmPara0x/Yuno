@@ -110,7 +110,7 @@ class Sentencizer(SentencizerBase):
 
     top_k = kwargs["top_k"]
 
-    target_vec, sents_mat = embds[0], embds[1:]
+    target_vec, sents_mat = embds[[0]], embds[1:]
     _, sents = texts[0], texts[1:]
 
     sim_vec = torch.cosine_similarity(target_vec, sents_mat)
