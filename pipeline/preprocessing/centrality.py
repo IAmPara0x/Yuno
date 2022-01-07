@@ -45,6 +45,7 @@ class Centrality(CentralityBase):
       if acc_prob < self.prob_threshold:
         output[0].append(idx)
         output[1].append(text)
+        acc_prob += prob
       else:
         break
 
@@ -60,7 +61,7 @@ class Centrality(CentralityBase):
                                          mat, dim=-1)
       adj_mat.append(padj_mat)
 
-    adj_mat: Tensor = torch.vstack(adj_mat)
+    adj_mat = torch.vstack(adj_mat)
 
     assert (adj_mat.shape[0] == mat.shape[0] and
             adj_mat.shape[1] == mat.shape[0])
