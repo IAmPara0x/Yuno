@@ -1,14 +1,14 @@
-from typing import Callable, List, Tuple, TypeVar
+from typing import Callable, List, Tuple, TypeVar, Optional
 from dataclasses import dataclass
 import operator
-from cytoolz.curried import reduce, compose, map, concat, accumulate  # type: ignore
+from cytoolz.curried import map, concat, accumulate  # type: ignore
 import torch
 
 Tensor = torch.Tensor
 Texts = List[str]
 Idxs = List[int]
 Nlp = Callable[[str], Texts]
-A = TypeVar("A")
+A = TypeVar("A", list, Tensor)
 
 
 @dataclass(init=True)
@@ -20,31 +20,38 @@ class SentencizerBase:
   tol_sent_len: int
 
 
-@dataclass(init=True)
 class Sentencizer(SentencizerBase):
-  modes: List[str] = ["mmr", "cossim"]
 
   def __call__(self, texts: Texts, mode: str = "mmr", *args, **kwargs) -> Texts:
-
-    assert mode in self.modes
 
     if mode == "mmr":
       return self.mmr_mode(texts, *args, **kwargs)
     elif mode == "cossim":
       return self.cossim_mode(texts, *args, **kwargs)
-
     else:
       raise NotImplementedError()
 
   def cossim_mode(self, texts: Texts, *args, **kwargs) -> Texts:
-    return texts
+    text_ids, sents_ids, sents = self.group_data(texts)
+    embds: Tensor = self.model(sents)
+    batch_sents = self.gather(sents, sents_ids)
+    batch_embds = self.gather(embds, sents_ids)
+
+    batch_texts = []
+
+    for i in range(len(batch_sents)):
+      text = self.cossim_filter(batch_sents[i], batch_embds[i], **kwargs)
+      batch_texts.append(text)
+
+    new_texts = self.gather(batch_texts, text_ids)
+    return [*map(lambda text: " ".join(text), new_texts)]
 
   def mmr_mode(self, texts: Texts, *args, **kwargs):
     text_ids, sents_ids, sents = self.group_data(texts)
     embds: Tensor = self.model(sents)
 
     batch_sents = self.gather(sents, sents_ids)
-    batch_embds = [*map(torch.vstack, self.gather(embds, sents_ids))]
+    batch_embds = self.gather(embds, sents_ids)
 
     batch_texts = []
 
@@ -63,28 +70,54 @@ class Sentencizer(SentencizerBase):
     threshold = kwargs["threshold"]
     terminate = kwargs["terminate"]
 
-    _, qe = sents[0], embds[0]
+    target_vec, mat = embds[0], embds[1:]
+
+    contrib = self.mmr(target_vec, mat)
     sents = sents[1:]
 
-    # NOTE: kaggle version of pytorch gives `RuntimeError`
-    # when the matrix is not invertible.
-
-    mat, mat_t = embds[1:].T, embds[1:]
-    res = mat_t @ mat
-    a = torch.linalg.det(res)
-
-    if a > 1e-5:
-      contrib = torch.inverse(res) @ mat_t @ qe
+    if contrib is not None:
       pos_idxs = torch.where(contrib > threshold)[0].tolist()
       filtered_sents = [
           sent for idx, sent in enumerate(sents) if idx in pos_idxs
       ]
+
       if terminate(contrib):
         return " ".join(filtered_sents)
       else:
-        return self.mmr_filter(filtered_sents, mat_t[pos_idxs])
+        return self.mmr_filter(filtered_sents, mat[pos_idxs])
+
     else:
       return " ".join(sents)
+
+  def mmr(self, t_vec: Tensor, mat: Tensor) -> Optional[Tensor]:
+
+    # NOTE: kaggle version of pytorch gives `RuntimeError`
+    # when the matrix is not invertible.
+
+    mat, mat_t = mat.T, mat
+    res = mat_t @ mat
+    a = torch.linalg.det(res)
+
+    if a > 1e-5:
+      contrib = torch.inverse(res) @ mat_t @ t_vec
+      return contrib
+    else:
+      return None
+
+  def cossim_filter(self, texts: Texts, embds: Tensor, **kwargs) -> str:
+
+    assert "top_k" in kwargs
+
+    top_k = kwargs["top_k"]
+
+    target_vec, sents_mat = embds[0], embds[1:]
+    _, sents = texts[0], texts[1:]
+
+    sim_vec = torch.cosine_similarity(target_vec, sents_mat)
+    _, idxs = torch.sort(sim_vec, descending=True)
+    k = round(top_k*len(sents))
+    idxs = idxs[:k]
+    return " ".join([sent for idx, sent in enumerate(sents) if idx in idxs])
 
   def group_data(self, texts: Texts) -> Tuple[Idxs, Idxs, Texts]:
 
@@ -129,7 +162,7 @@ class Sentencizer(SentencizerBase):
     return grp_texts
 
   @staticmethod
-  def gather(data: List[A], idxs: Idxs) -> List[List[A]]:
+  def gather(data: A, idxs: Idxs) -> List[A]:
     acc = []
     for s_idx, e_idx in zip(idxs, idxs[1:]):
       acc.append(data[s_idx:e_idx])
