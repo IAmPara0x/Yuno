@@ -1,4 +1,4 @@
-from typing import Callable, List
+from typing import Callable, List, Any
 from dataclasses import dataclass
 from cytoolz.curried import reduce, compose, map, concat # type: ignore
 import torch
@@ -18,7 +18,7 @@ class SentencizerConfig:
 
 @dataclass(init=True)
 class SentencizerBase:
-  nlp: Callable[[str], List[str]]
+  nlp: Callable[[str], Any]
   model: Callable[[List[str]], Tensor]
   cfg: SentencizerConfig
 

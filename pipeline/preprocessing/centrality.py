@@ -4,6 +4,8 @@ from cytoolz.curried import reduce  # type: ignore
 import torch
 
 Tensor = torch.Tensor
+Output = Tuple[List[int], List[str]]
+Prob = float
 
 
 @dataclass
@@ -16,17 +18,7 @@ class CentralityBase:
 @dataclass
 class Centrality(CentralityBase):
 
-  def __call__(self, texts: List[str], prob_threshold: Optional[float] = None) -> List[str]:
-
-    def cum_prob(data: Tuple[float, List[str]],
-                 input: Tuple[float, str]
-                 ):
-      cum_p, itexts = data
-      p, text = input
-      if cum_p < prob_threshold:
-        cum_p += p
-        itexts.append(text)
-      return (cum_p, itexts)
+  def __call__(self, texts: List[str], prob_threshold: Optional[float] = None) -> Output:
 
     if prob_threshold is None:
       prob_threshold = self.prob_threshold
@@ -42,14 +34,24 @@ class Centrality(CentralityBase):
     assert embds.shape[0] == len(texts)
 
     state_vec = self.eig_centrality(embds, self.batch_size)
-    _, new_texts = reduce(cum_prob,
-                          sorted(zip(state_vec, texts), reverse=True),
-                          (0, []))
+    datas = sorted(zip(state_vec, texts), reverse=True)
 
-    return new_texts
+    acc_prob: float = 0
+    output: Output = ([],[])
+
+    for idx,data in enumerate(datas):
+      prob,text = data
+
+      if acc_prob < self.prob_threshold:
+        output[0].append(idx)
+        output[1].append(text)
+      else:
+        break
+
+    return output
 
   @staticmethod
-  def eig_centrality(mat: Tensor, batch_size: int) -> List[float]:
+  def eig_centrality(mat: Tensor, batch_size: int) -> List[Prob]:
 
     adj_mat = []
 
@@ -58,7 +60,7 @@ class Centrality(CentralityBase):
                                          mat, dim=-1)
       adj_mat.append(padj_mat)
 
-    adj_mat = torch.vstack(adj_mat)
+    adj_mat: Tensor = torch.vstack(adj_mat)
 
     assert (adj_mat.shape[0] == mat.shape[0] and
             adj_mat.shape[1] == mat.shape[0])
