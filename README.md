@@ -61,5 +61,6 @@ Below are the few kaggle notebooks that you can look into to learn more about th
 
 <hr>
 
-## **References**
+## **Thanks**
 1. This [dataset](https://www.kaggle.com/marlesson/myanimelist-dataset-animes-profiles-reviews)  was used as initial starting point.
+2. The pytorch BERT implementation is directly taken from this [repo](https://github.com/dreamgonfly/BERT-pytorch).
