@@ -19,17 +19,21 @@ class Distill(nn.Module):
     self.layermap = layermap
     self.attn_headmap = attn_headmap
 
-    self.hidden_proj = [nn.Linear(d_modelS, d_modelT)
-                        for _ in range(num_layers)]
+    self.embd_proj = nn.Linear(d_modelS, d_modelT, bias=False)
+    self.hidden_proj = nn.ModuleList([nn.Linear(d_modelS, d_modelT, bias=False)
+                                      for _ in range(num_layers)])
 
   def forward(self, outputT, outputS):
-    hidden_statesT = outputT.hidden_states
-    hidden_statesS = outputS.hidden_states
+    embd_matT, hidden_statesT = outputT[0], outputT.hidden_states[1:]
+    embd_matS, hidden_statesS = outputS[0], outputS.hidden_states[1:]
 
     attentionsT = outputT.attentions
     attentionsS = outputS.attentions
 
     layers_loss = []
+
+    embd_loss = self.hidden_loss(embd_matT, self.embd_proj(embd_matS))
+    layers_loss.append(embd_loss)
 
     for i in range(self.num_layers):
       g = self.layermap(i)
@@ -37,16 +41,13 @@ class Distill(nn.Module):
       hidden_stateS = self.hidden_proj[i](hidden_statesS[i])
       hidden_stateT = hidden_statesT[g]
 
-      if i != 0:
-        mha_matS = attentionsS[i]
-        mha_matT = attentionsT[g]
+      mha_matS = attentionsS[i]
+      mha_matT = attentionsT[g]
 
-        layer_loss = (self.attention_loss(mha_matT, mha_matS) +
-                      self.hidden_loss(hidden_stateT, hidden_stateS))
-      else:
-        layer_loss = self.hidden_loss(hidden_stateT, hidden_stateS)
-
+      layer_loss = (self.attention_loss(mha_matT, mha_matS) +
+                    self.hidden_loss(hidden_stateT, hidden_stateS))
       layers_loss.append(layer_loss)
+
     return torch.mean(torch.vstack(layers_loss))
 
   def attention_loss(self, mha_matT, mha_matS):
