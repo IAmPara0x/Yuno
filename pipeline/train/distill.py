@@ -1,3 +1,7 @@
+
+# Distillization process is implementation of the following paper:
+# https://arxiv.org/abs/1909.10351
+
 from typing import Callable
 
 import torch
@@ -8,7 +12,8 @@ import torch.nn.functional as F
 class Distill(nn.Module):
 
   def __init__(self, num_layers: int, d_modelT: int,
-               d_modelS: int, layermap: Callable[[int], int],
+               d_modelS: int, alpha: int,
+               layermap: Callable[[int], int],
                attn_headmap: Callable[[int], int],
                ):
     super(Distill, self).__init__()
@@ -16,10 +21,10 @@ class Distill(nn.Module):
     self.num_layers = num_layers
     self.d_modelT = d_modelT
     self.d_modelS = d_modelS
+    self.alpha = alpha
     self.layermap = layermap
     self.attn_headmap = attn_headmap
 
-    self.embd_proj = nn.Linear(d_modelS, d_modelT, bias=False)
     self.hidden_proj = nn.ModuleList([nn.Linear(d_modelS, d_modelT, bias=False)
                                       for _ in range(num_layers)])
 
@@ -32,7 +37,7 @@ class Distill(nn.Module):
 
     layers_loss = []
 
-    embd_loss = self.hidden_loss(embd_matT, self.embd_proj(embd_matS))
+    embd_loss = self.alpha * self.hidden_loss(embd_matT, embd_matS)
     layers_loss.append(embd_loss)
 
     for i in range(self.num_layers):
@@ -67,4 +72,4 @@ class Distill(nn.Module):
     return loss
 
   def hidden_loss(self, hidden_stateT, hidden_stateS):
-    return F.mse_loss(hidden_stateT, hidden_stateS)
+    return F.mse_loss(hidden_stateS, hidden_stateT)
