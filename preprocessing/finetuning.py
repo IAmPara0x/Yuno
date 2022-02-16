@@ -44,7 +44,7 @@ class FineTuningModel(FineTuningBase):
     def mask_token(data, token):
       if token == self.pad_token_id:
         data[-1].append(-100)
-        data[0].appned(token)
+        data[0].append(token)
 
       prob = random.random()
       if prob < 0.15:
